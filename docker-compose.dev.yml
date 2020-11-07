@@ -13,14 +13,21 @@ services:
       - "8080:8080"
     environment:
       TZ: Asia/Tokyo
-      FLASK_APP: Hearvo/run.py
-      SETTING: "dev"
+      FLASK_APP: run
+      ENVIRONMENT: "dev"
+      DEBUG: "True"
       POSTGRES_USER: user
       POSTGRES_PASSWORD: password
       POSTGRES_HOST: db_postgres
       POSTGRES_PORT: 5432
       POSTGRES_DB: hearvo_dev
       PYTHONUNBUFFERED: 0
+
+    volumes:
+       - type: bind
+         source: ${PWD}/migrations
+         target: /app/migrations
+
 
   postgres:
     container_name: db_postgres

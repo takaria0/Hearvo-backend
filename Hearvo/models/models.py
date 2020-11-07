@@ -1,142 +1,189 @@
 from datetime import datetime
-from ..app import db, ma
+
 from flask_sqlalchemy import SQLAlchemy
 from flask_marshmallow import Marshmallow
 
+from ..app import db, ma
 
 
-class Test(db.Model):
-  __tablename__ = "test"
-  id = db.Column(db.Integer, primary_key=True)
-  content = db.Column(db.String(100))
 
 #########################################
 # Model (DB) and Schema (Serialization)
 #########################################
 
-#########################################
-# Person
-#########################################
-
-class Person(db.Model):
-    __tablename__ = 'person'
-    person_id = db.Column(db.Integer,
-                          primary_key=True)
-    lname = db.Column(db.String)
-    fname = db.Column(db.String)
-    timestamp = db.Column(db.DateTime,
-                          default=datetime.utcnow(),
-                          onupdate=datetime.utcnow())
-
-class PersonSchema(ma.Schema):
-    class Meta:
-        model = Person
-        sqla_session = db.session
-
-
-#########################################
-# Product
-#########################################
-
-class Product(db.Model):
-    _id = db.Column(db.Integer, primary_key=True)
-    name = db.Column(db.String(100))
-    description = db.Column(db.String(200))
-    price = db.Column(db.Float)
-    qty = db.Column(db.Integer)
-
-    def __init__(self, name, description, price, qty):
-        self.name = name
-        self.description = description
-        self.price = price
-        self.qty = qty
-
-
-class ProductSchema(ma.Schema):
-    class Meta:
-        fields = ('_id', 'name', 'description', 'price', 'qty')
-
 
 #########################################
 # Post
 #########################################
-
 class Post(db.Model):
-    id = db.Column(db.Integer, primary_key=True)
-    title = db.Column(db.String(100))
-    content = db.Column(db.String(300))
+  __tablename__ = "post"
 
+  id = db.Column(db.Integer, primary_key=True, nullable=False)
+  title = db.Column(db.String(100), nullable=False)
+  content = db.Column(db.String(300), nullable=True)
+  start_at = db.Column(db.DateTime, default=datetime.utcnow())
+  end_at = db.Column(db.DateTime, default=None)
+  created_at = db.Column(db.DateTime, default=datetime.utcnow())
+  updated_at = db.Column(db.DateTime, default=datetime.utcnow(), onupdate=datetime.utcnow())
 
-    start_at = db.Column(db.DateTime)
-    end_at = db.Column(db.DateTime)
-    created_at = db.Column(db.DateTime, default=datetime.utcnow())
-    updated_at = db.Column(db.DateTime, default=datetime.utcnow(), onupdate=datetime.utcnow())
+  # Foreign Key
+  user_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=False)
 
-    def __repr__(self):
-        return '<Post %s>' % self.title
+  # One to Many
+  vote_selects = db.relationship("VoteSelect", backref="post")
+
+  def __repr__(self):
+      return '<Post %s>' % self.title
 
 
 class PostSchema(ma.Schema):
-    class Meta:
-        fields = ("id", "title", "content")
+  class Meta:
+      fields = ("id", "title", "content", "created_at", "updated_at")
 
 #########################################
 # User
 #########################################
 class User(db.Model):
-    id = db.Column(db.Integer, primary_key=True)
-    string_id = db.Column(db.String(20))
-    name = db.Column(db.String(100))
-    description = db.Column(db.String(300))
+  __tablename__ = "user"
+  
+  id = db.Column(db.Integer, primary_key=True, nullable=False)
+  string_id = db.Column(db.String(20))
+  name = db.Column(db.String(100))
+  description = db.Column(db.String(300))
+  occupation = db.Column(db.String(100))
+  gender = db.Column(db.String(100))
+  age = db.Column(db.Integer)
+  hashed_password = db.Column(db.String(64), nullable=False)
+  created_at = db.Column(db.DateTime, default=datetime.utcnow())
+  updated_at = db.Column(db.DateTime, default=datetime.utcnow(), onupdate=datetime.utcnow())
 
-    created_at = db.Column(db.DateTime, default=datetime.utcnow())
-    updated_at = db.Column(db.DateTime, default=datetime.utcnow(), onupdate=datetime.utcnow())
+  # One to Many
+  posts = db.relationship("Post", backref="user")
 
-    def __repr__(self):
-        return '<User %s>' % self.title
+  # Many to Many
+  vote_selects = db.relationship("VoteSelect", secondary="vote_select_user")
+
+  def __repr__(self):
+      return '<User %s>' % self.title
 
 
 class UserSchema(ma.Schema):
-    class Meta:
-        fields = ("id", "string_id", "name", "description")
+  class Meta:
+      fields = ("id", "string_id", "name", "description", "created_at", "updated_at")
 
 #########################################
 # VoteSelect
 #########################################
 class VoteSelect(db.Model):
-    id = db.Column(db.Integer, primary_key=True)
-    post_id = db.Column(db.String(20))
-    content = db.Column(db.String(100))
-    count = db.Column(db.Integer(11))
+  __tablename__ = "vote_select"
 
-    created_at = db.Column(db.DateTime, default=datetime.utcnow())
-    updated_at = db.Column(db.DateTime, default=datetime.utcnow(), onupdate=datetime.utcnow())
+  id = db.Column(db.Integer, primary_key=True, nullable=False)
+  post_id = db.Column(db.String(20))
+  content = db.Column(db.String(100))
+  count = db.Column(db.Integer)
+  created_at = db.Column(db.DateTime, default=datetime.utcnow())
+  updated_at = db.Column(db.DateTime, default=datetime.utcnow(), onupdate=datetime.utcnow())
 
-    def __repr__(self):
-        return '<VoteSelect %s>' % self.title
+  # Foreign Key
+  post_id = db.Column(db.Integer, db.ForeignKey('post.id'))
+
+  # Many to Many
+  users = db.relationship("User", secondary="vote_select_user")
+
+  def __repr__(self):
+      return '<VoteSelect %s>' % self.title
 
 
 class VoteSelectSchema(ma.Schema):
-    class Meta:
-        fields = ("id", "string_id", "name", "description")
+  class Meta:
+      fields = ("id", "string_id", "name", "description")
 
 #########################################
-# VoteMJ
+# VoteSelectUser (Associate Many to Many for User and VoteSelect)
 #########################################
-class VoteMJ(db.Model):
-    id = db.Column(db.Integer, primary_key=True)
-    post_id = db.Column(db.String(20))
-    content = db.Column(db.String(100))
-    count = db.Column(db.Integer(11))
+class VoteSelectUser(db.Model):
+  __tablename__ = "vote_select_user"
 
-    created_at = db.Column(db.DateTime, default=datetime.utcnow())
-    updated_at = db.Column(db.DateTime, default=datetime.utcnow(), onupdate=datetime.utcnow())
+  id = db.Column(db.Integer, primary_key=True, nullable=False)
+  created_at = db.Column(db.DateTime, default=datetime.utcnow())
+  updated_at = db.Column(db.DateTime, default=datetime.utcnow(), onupdate=datetime.utcnow())
 
-    def __repr__(self):
-        return '<VoteMJ %s>' % self.title
+  # Foreign Key
+  vote_select_id = db.Column(db.Integer, db.ForeignKey('vote_select.id'), primary_key=True)
+  user_id = db.Column(db.Integer, db.ForeignKey('user.id'), primary_key=True)
+
+  def __repr__(self):
+      return '<VoteSelectUser %s>' % self.title
 
 
-class VoteMJSchema(ma.Schema):
-    class Meta:
-        fields = ("id", "string_id", "name", "description")
+class VoteSelectUserSchema(ma.Schema):
+  class Meta:
+      fields = ("id", "string_id", "name", "description")
 
+
+#########################################
+# VoteMj
+#########################################
+class VoteMj(db.Model):
+  __tablename__ = "vote_mj"
+
+  id = db.Column(db.Integer, primary_key=True, nullable=False)
+  post_id = db.Column(db.String(20))
+  content = db.Column(db.String(100))
+  count = db.Column(db.Integer)
+  created_at = db.Column(db.DateTime, default=datetime.utcnow())
+  updated_at = db.Column(db.DateTime, default=datetime.utcnow(), onupdate=datetime.utcnow())
+
+  # Foreign Key
+  post_id = db.Column(db.Integer, db.ForeignKey('post.id'))
+
+  def __repr__(self):
+      return '<VoteMj %s>' % self.title
+
+
+class VoteMjSchema(ma.Schema):
+  class Meta:
+      fields = ("id", "string_id", "name", "description")
+
+#########################################
+# MjOption
+#########################################
+class MjOption(db.Model):
+  __tablename__ = "mj_option"
+  id = db.Column(db.Integer, primary_key=True, nullable=False)
+  rank = db.Column(db.String(20))
+  option = db.Column(db.String(100))
+
+
+  def __repr__(self):
+      return '<MjOption %s>' % self.title
+
+
+class MjOptionSchema(ma.Schema):
+  class Meta:
+      fields = ("id", "rank", "option")
+
+
+
+
+#########################################
+# VoteMjUser
+#########################################
+class VoteMjUser(db.Model):
+  __tablename__ = "vote_mj_user"
+
+  id = db.Column(db.Integer, primary_key=True, nullable=False)
+  post_id = db.Column(db.String(20))
+  content = db.Column(db.String(100))
+  count = db.Column(db.Integer)
+
+  created_at = db.Column(db.DateTime, default=datetime.utcnow())
+  updated_at = db.Column(db.DateTime, default=datetime.utcnow(), onupdate=datetime.utcnow())
+
+  def __repr__(self):
+      return '<VoteMjUser %s>' % self.title
+
+
+class VoteMjUserSchema(ma.Schema):
+  class Meta:
+      fields = ("id", "string_id", "name", "description")
