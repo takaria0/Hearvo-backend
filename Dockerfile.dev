@@ -1,0 +1,28 @@
+# FROM ubuntu:16.04
+# RUN apt-get update -y && \
+#   apt-get install -y python3-pip python3-dev 
+
+
+FROM python:3.9
+# We copy just the requirements.txt first to leverage Docker cache
+COPY ./requirements.dev.txt /app/requirements.dev.txt
+
+WORKDIR /app
+
+RUN pip install -r requirements.dev.txt
+
+COPY . /app
+COPY wait-for-it.sh /wait-for-it.sh
+RUN chmod +x ./wait-for-it.sh
+
+# add the 'postgres' admin role
+# USER postgres
+
+# expose Postgres port
+EXPOSE 5432
+
+# bind mount Postgres volumes for persistent data
+VOLUME ["/etc/postgresql", "/var/log/postgresql", "/var/lib/postgresql"]
+
+# ENTRYPOINT [ "/bin/bash", "-c" ]
+CMD ["./wait-for-it.sh", "db_postgres:5432", "--", "python3","run.py"]
