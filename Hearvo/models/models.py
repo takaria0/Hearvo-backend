@@ -40,6 +40,7 @@ class PostSchema(ma.Schema):
   class Meta:
       fields = ("id", "title", "content", "created_at", "updated_at")
 
+
 #########################################
 # User
 #########################################
@@ -49,11 +50,13 @@ class User(db.Model):
   id = db.Column(db.Integer, primary_key=True, nullable=False)
   string_id = db.Column(db.String(20))
   name = db.Column(db.String(100))
+  email = db.Column(db.String(350))
   description = db.Column(db.String(300))
   occupation = db.Column(db.String(100))
   gender = db.Column(db.String(100))
   age = db.Column(db.Integer)
-  hashed_password = db.Column(db.String(64), nullable=False)
+  birthday = db.Column(db.DateTime)
+  hashed_password = db.Column(db.String(150), nullable=False)
   created_at = db.Column(db.DateTime, default=datetime.utcnow())
   updated_at = db.Column(db.DateTime, default=datetime.utcnow(), onupdate=datetime.utcnow())
 
@@ -70,6 +73,7 @@ class User(db.Model):
 class UserSchema(ma.Schema):
   class Meta:
       fields = ("id", "string_id", "name", "description", "created_at", "updated_at")
+
 
 #########################################
 # VoteSelect
@@ -96,7 +100,8 @@ class VoteSelect(db.Model):
 
 class VoteSelectSchema(ma.Schema):
   class Meta:
-      fields = ("id", "string_id", "name", "description")
+      fields = ("id", "post_id")
+
 
 #########################################
 # VoteSelectUser (Associate Many to Many for User and VoteSelect)
@@ -104,7 +109,7 @@ class VoteSelectSchema(ma.Schema):
 class VoteSelectUser(db.Model):
   __tablename__ = "vote_select_user"
 
-  id = db.Column(db.Integer, primary_key=True, nullable=False)
+  # id = db.Column(db.Integer, primary_key=True, nullable=False)
   created_at = db.Column(db.DateTime, default=datetime.utcnow())
   updated_at = db.Column(db.DateTime, default=datetime.utcnow(), onupdate=datetime.utcnow())
 
@@ -118,7 +123,7 @@ class VoteSelectUser(db.Model):
 
 class VoteSelectUserSchema(ma.Schema):
   class Meta:
-      fields = ("id", "string_id", "name", "description")
+      fields = ("id", "user_id", "vote_select_id")
 
 
 #########################################

@@ -1,7 +1,7 @@
 import logging as logger
 import os
 from Hearvo.models import db  #import loaded Database 
-from Hearvo.apis import app # import loaded app
+from Hearvo.apis.routes import app # import loaded app
 import Hearvo.config as config
 
 if __name__ == "__main__":
