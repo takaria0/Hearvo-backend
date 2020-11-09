@@ -25,5 +25,7 @@ EXPOSE 5432
 # bind mount Postgres volumes for persistent data
 VOLUME ["/etc/postgresql", "/var/log/postgresql", "/var/lib/postgresql"]
 
+VOLUME ["/app"]
+
 # ENTRYPOINT [ "/bin/bash", "-c" ]
 CMD ["./wait-for-it.sh", "db_postgres:5432", "--", "./entrypoint.sh"]

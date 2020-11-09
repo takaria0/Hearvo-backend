@@ -1,16 +1,14 @@
 import os
 
 from flask import request, Response, abort, jsonify, Blueprint
-from flask_restful import Resource, Api
+from flask_restful import Resource
 
 import Hearvo.config as config
-from ..app import api, app
+from ..app import app, logger
 from ..models import Post, PostSchema
 
-PRE = config.URL_PREFIX
 
-
-@app.route('/')
+@app.route(f'/{PRE}/')
 def hello_world():
     return {
       "message": 'health',

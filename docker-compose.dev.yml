@@ -4,7 +4,8 @@ services:
   app:
     build:
       context: .
-      dockerfile: Dockerfile.dev
+      dockerfile: Dockerfile.dev 
+    restart: always
     depends_on:
       - postgres
     links:
@@ -16,6 +17,7 @@ services:
       FLASK_APP: run
       ENVIRONMENT: "dev"
       DEBUG: "True"
+      SECRET_KEY: aaaabbbbcccc
       POSTGRES_USER: user
       POSTGRES_PASSWORD: password
       POSTGRES_HOST: db_postgres
@@ -24,32 +26,34 @@ services:
       PYTHONUNBUFFERED: 0
 
     volumes:
-       - type: bind
-         source: ${PWD}/migrations
-         target: /app/migrations
+      - ./Hearvo:/app/Hearvo
+      - ./migrations:/app/migrations
+      - ./run.py:/app/run.py
 
+      #  - type: bind
+      #    source: ${PWD}/migrations
+      #    target: /app/migrations
+      #  - type: volume
+      #    source: .
+      #    target: /app
+    
 
   postgres:
     container_name: db_postgres
-    image: postgres:latest
+    image: postgres:13.0
     restart: always
     ports:
-      - "5432:5432"
+      - "6432:5432"
     expose:
-      - '5432'
+      - '6432'
     environment:
-      POSTGRES_USER: user
-      POSTGRES_PASSWORD: password
-      POSTGRES_HOST: db_postgres
-      POSTGRES_PORT: 5432
-      POSTGRES_DB: hearvo_dev
+        POSTGRES_USER: user
+        POSTGRES_PASSWORD: password
+        POSTGRES_HOST: db_postgres
+        POSTGRES_PORT: 5432
+        POSTGRES_DB: hearvo_dev
     volumes:
       - db_volume:/var/lib/postgresql/
-    # healthcheck:
-    #   test: ["CMD-SHELL", "pg_isready -U postgres"]
-    #   interval: 1s
-    #   timeout: 2s
-    #   retries: 10
 
 
 volumes:
