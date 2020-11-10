@@ -27,7 +27,7 @@ class PostResource(Resource):
 
   @jwt_required
   def post(self):
-    user_id = get_jwt_identity()
+    # user_id = get_jwt_identity()
     new_post = Post(
       user_id=request.json["user_id"],
       title=request.json['title'],

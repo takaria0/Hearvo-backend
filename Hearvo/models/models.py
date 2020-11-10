@@ -38,7 +38,7 @@ class Post(db.Model):
 
 class PostSchema(ma.Schema):
   class Meta:
-      fields = ("id", "title", "content", "created_at", "updated_at")
+      fields = ("id", "title", "start_at", "end_at", "content", "created_at", "updated_at")
 
 
 #########################################

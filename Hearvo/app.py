@@ -12,6 +12,9 @@ from flask_jwt_extended import (
     JWTManager, jwt_required, create_access_token,
     get_jwt_identity
 )
+from flask_cors import CORS
+
+
 
 import Hearvo.config as config
 
@@ -27,6 +30,7 @@ app.config['SQLALCHEMY_DATABASE_URI'] = config.SQLALCHEMY_DATABASE_URI
 app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
 
 db = SQLAlchemy(app)
+CORS(app, origins=config.ALLOW_ORIGIN_LIST)
 Migrate(app, db)
 ma = Marshmallow(app)
 api = Api(app)

@@ -7,6 +7,8 @@ SECRET_KET = os.environ["SECRET_KEY"]
 
 
 if setting == "dev":
+  ALLOW_ORIGIN_LIST = ["*"]
+
   user = os.environ['POSTGRES_USER']
   password = os.environ['POSTGRES_PASSWORD']
   host = os.environ['POSTGRES_HOST']
@@ -25,8 +27,8 @@ if setting == "dev":
       )
 
 elif setting == "prod":
-  # Remember - storing secrets in plaintext is potentially unsafe. Consider using
-  # something like https://cloud.google.com/kms/ to help keep secrets secret.
+  ALLOW_ORIGIN_LIST = [""] # add later to enable cors access fron frontend
+
   db_user = os.environ.get("DB_USER")
   db_pass = os.environ.get("DB_PASS")
   db_name = os.environ.get("DB_NAME")
