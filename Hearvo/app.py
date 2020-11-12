@@ -25,6 +25,8 @@ logger.setLevel(logging.INFO)
 
 app = Flask(__name__)
 app.config['JWT_SECRET_KEY'] = config.SECRET_KET
+app.config['JWT_ACCESS_LIFESPAN'] = {'hours': 24}
+app.config['JWT_REFRESH_LIFESPAN'] = {'days': 30}
 app.config["DEBUG"] = config.DEBUG_SETTING
 app.config['SQLALCHEMY_DATABASE_URI'] = config.SQLALCHEMY_DATABASE_URI
 app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False

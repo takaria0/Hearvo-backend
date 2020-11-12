@@ -74,9 +74,9 @@ class LoginResource(Resource):
 
     # password matching
     if (bcrypt.checkpw(password.encode("utf-8"), hashed_password.encode("utf-8"))):
-      expires = datetime.timedelta(days=7)
+      expires = datetime.timedelta(days=30)
       access_token = create_access_token(identity=str(current_user.id), expires_delta=expires)
-      return {'token': access_token}, 200
+      return {"token": access_token, "user_id": current_user.id}, 200
 
     else:
       return {"message": "Login failed"}, 400

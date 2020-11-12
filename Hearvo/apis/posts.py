@@ -2,7 +2,7 @@ import os
 
 from flask import request, Response, abort, jsonify, Blueprint
 from flask_restful import Resource
-from flask_jwt_extended import jwt_required
+from flask_jwt_extended import jwt_required, get_jwt_identity
 
 import Hearvo.config as config
 from ..app import logger
@@ -22,14 +22,14 @@ class PostResource(Resource):
   @jwt_required
   def get(self):
 
-    posts = Post.query.all()
+    posts = Post.query.order_by(Post.created_at.desc()).all()
     return posts_schema.dump(posts)
 
   @jwt_required
   def post(self):
-    # user_id = get_jwt_identity()
+    user_id = get_jwt_identity()
     new_post = Post(
-      user_id=request.json["user_id"],
+      user_id=user_id,
       title=request.json['title'],
       content=request.json['content']
     )
