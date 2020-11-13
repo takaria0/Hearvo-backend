@@ -1,9 +1,9 @@
 from datetime import datetime
 
 from flask_sqlalchemy import SQLAlchemy
-from flask_marshmallow import Marshmallow
 
-from ..app import db, ma
+
+from ..app import db #, ma
 
 
 
@@ -36,10 +36,6 @@ class Post(db.Model):
       return '<Post %s>' % self.title
 
 
-class PostSchema(ma.Schema):
-  class Meta:
-      fields = ("id", "title", "start_at", "end_at", "content", "created_at", "updated_at")
-
 
 #########################################
 # User
@@ -67,12 +63,9 @@ class User(db.Model):
   vote_selects = db.relationship("VoteSelect", secondary="vote_select_user")
 
   def __repr__(self):
-      return '<User %s>' % self.title
+      return '<User %s>' % self.name
 
 
-class UserSchema(ma.Schema):
-  class Meta:
-      fields = ("id", "string_id", "name", "email", "description", "created_at", "updated_at")
 
 
 #########################################
@@ -95,12 +88,9 @@ class VoteSelect(db.Model):
   users = db.relationship("User", secondary="vote_select_user")
 
   def __repr__(self):
-      return '<VoteSelect %s>' % self.title
+      return '<VoteSelect %s>' % self.post_id
 
 
-class VoteSelectSchema(ma.Schema):
-  class Meta:
-      fields = ("id", "post_id")
 
 
 #########################################
@@ -118,12 +108,8 @@ class VoteSelectUser(db.Model):
   user_id = db.Column(db.Integer, db.ForeignKey('user.id'), primary_key=True)
 
   def __repr__(self):
-      return '<VoteSelectUser %s>' % self.title
+      return '<VoteSelectUser %s>' % self.vote_select_id
 
-
-class VoteSelectUserSchema(ma.Schema):
-  class Meta:
-      fields = ("id", "user_id", "vote_select_id")
 
 
 #########################################
@@ -146,9 +132,6 @@ class VoteMj(db.Model):
       return '<VoteMj %s>' % self.title
 
 
-class VoteMjSchema(ma.Schema):
-  class Meta:
-      fields = ("id", "string_id", "name", "description")
 
 #########################################
 # MjOption
@@ -162,11 +145,6 @@ class MjOption(db.Model):
 
   def __repr__(self):
       return '<MjOption %s>' % self.title
-
-
-class MjOptionSchema(ma.Schema):
-  class Meta:
-      fields = ("id", "rank", "option")
 
 
 
@@ -189,6 +167,3 @@ class VoteMjUser(db.Model):
       return '<VoteMjUser %s>' % self.title
 
 
-class VoteMjUserSchema(ma.Schema):
-  class Meta:
-      fields = ("id", "string_id", "name", "description")

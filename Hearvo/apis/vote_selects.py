@@ -1,13 +1,13 @@
 import os
+from collections import Counter
 
 from flask import request, Response, abort, jsonify, Blueprint
 from flask_restful import Resource
-from flask_jwt_extended import jwt_required
+from flask_jwt_extended import jwt_required, get_jwt_identity
 
 import Hearvo.config as config
 from ..app import logger
-from ..models import db, VoteSelect, VoteSelectSchema, VoteSelectUser
-
+from ..models import db, VoteSelect, VoteSelectSchema, VoteSelectUser, Post
 
 #########################################
 # Schema
@@ -48,6 +48,28 @@ class VoteSelectResource(Resource):
 
     return res_obj, status_code
 
+class CountVoteSelectResource(Resource):
+
+  @jwt_required
+  def post(self):
+    post_id = request.json["post_id"]
+    post_obj = Post.query.filter_by(id=post_id).first()
+    vote_selects_obj = post_obj.vote_selects
+
+    vote_select_ids = [obj.id for obj in vote_selects_obj]
+    vote_select_user_obj = VoteSelectUser.query.filter(VoteSelectUser.vote_select_id.in_(vote_select_ids))
+    count_obj = {obj.user_id: obj.vote_select_id for obj in vote_select_user_obj}
+    
+    vote_selects_count = Counter(count_obj.values())
+    total_vote = sum(vote_selects_count.values())
+    data = dict(Counter(count_obj.values()))
+    vote_selects_count = [{"vote_select_id": id, "count": data[id]} if id in data.keys() else {"vote_select_id": id, "count": 0} for id in vote_select_ids ]
+
+    res_obj = {"message": "count the vote", "vote_select_ids": vote_select_ids, "vote_selects_count": vote_selects_count, "total_vote": total_vote}
+    status_code = 200
+    return res_obj, status_code
+
+
 
 class VoteSelectUserResource(Resource):
   
@@ -58,9 +80,10 @@ class VoteSelectUserResource(Resource):
 
   @jwt_required
   def post(self):
+    user_id = get_jwt_identity()
     new_vote_select = VoteSelectUser(
       vote_select_id=request.json["vote_select_id"],
-      user_id=request.json["user_id"]
+      user_id=user_id
     )
 
     try:
