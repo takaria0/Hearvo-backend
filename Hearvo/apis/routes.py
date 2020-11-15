@@ -9,6 +9,7 @@ from .posts import PostResource
 from .users import UserResource
 from .auth import SignupResource, LoginResource
 from .vote_selects import VoteSelectResource, VoteSelectUserResource, CountVoteSelectResource
+from .comments import CommentResource
 
 PRE = config.URL_PREFIX
 
@@ -29,5 +30,6 @@ api.add_resource(UserResource, f'/{PRE}/users')
 api.add_resource(VoteSelectResource, f'/{PRE}/vote_selects')
 api.add_resource(CountVoteSelectResource, f'/{PRE}/count_vote_selects')
 api.add_resource(VoteSelectUserResource, f'/{PRE}/vote_select_users')
+api.add_resource(CommentResource, f'/{PRE}/comments')
 
 

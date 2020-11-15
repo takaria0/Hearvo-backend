@@ -1,5 +1,7 @@
 import os
 from collections import Counter
+from datetime import datetime, date
+
 
 from flask import request, Response, abort, jsonify, Blueprint
 from flask_restful import Resource
@@ -8,6 +10,7 @@ from flask_jwt_extended import jwt_required, get_jwt_identity
 import Hearvo.config as config
 from ..app import logger
 from ..models import db, VoteSelect, VoteSelectSchema, VoteSelectUser, Post
+from .logger_api import logger_api
 
 #########################################
 # Schema
@@ -52,6 +55,7 @@ class CountVoteSelectResource(Resource):
 
   @jwt_required
   def post(self):
+    logger_api("request.json", str(request.json))
     post_id = request.json["post_id"]
     post_obj = Post.query.filter_by(id=post_id).first()
     vote_selects_obj = post_obj.vote_selects
@@ -59,11 +63,13 @@ class CountVoteSelectResource(Resource):
     vote_select_ids = [obj.id for obj in vote_selects_obj]
     vote_select_user_obj = VoteSelectUser.query.filter(VoteSelectUser.vote_select_id.in_(vote_select_ids))
     count_obj = {obj.user_id: obj.vote_select_id for obj in vote_select_user_obj}
-    
+    id_content_table = {obj.id: obj.content for obj in vote_selects_obj}
+
     vote_selects_count = Counter(count_obj.values())
     total_vote = sum(vote_selects_count.values())
     data = dict(Counter(count_obj.values()))
-    vote_selects_count = [{"vote_select_id": id, "count": data[id]} if id in data.keys() else {"vote_select_id": id, "count": 0} for id in vote_select_ids ]
+    vote_selects_count = [{"vote_select_id": id, "count": data[id], "content": id_content_table[id]} if id in data.keys() else {"vote_select_id": id, "count": 0, "content": id_content_table[id]} for id in vote_select_ids ]
+
 
     res_obj = {"message": "count the vote", "vote_select_ids": vote_select_ids, "vote_selects_count": vote_selects_count, "total_vote": total_vote}
     status_code = 200
@@ -75,16 +81,55 @@ class VoteSelectUserResource(Resource):
   
   @jwt_required
   def get(self):
-    vote_selects = VoteSelectUser.query.all()
-    return {"message": "aaa"}
+    user_id = get_jwt_identity()
+    post_id = request.args["post_id"]
+    vote_selects = VoteSelectUser.query.filter_by(user_id=user_id, post_id=post_id).all()
+    vote_selects_list = [obj.user_id for obj in vote_selects]
+
+    post_obj = Post.query.get(post_id)
+    end_at = str(post_obj.end_at)
+
+    try:
+      end_date = datetime.fromisoformat(end_at)
+      today = datetime.today()
+
+      if end_date < today:
+        end = True
+      else:
+        end = False
+        
+    except:
+      end = False
+
+
+    if len(vote_selects_list) >= 1:
+      res_obj = {"voted": True, "end": end}
+      status_code = 200
+    else:
+      res_obj = {"voted": False, "end": end}
+      status_code = 200
+
+    return res_obj, status_code
 
   @jwt_required
   def post(self):
     user_id = get_jwt_identity()
+    vote_select_id = request.json["vote_select_id"]
+    post_id = request.json["post_id"]
     new_vote_select = VoteSelectUser(
-      vote_select_id=request.json["vote_select_id"],
-      user_id=user_id
+      vote_select_id=vote_select_id,
+      user_id=user_id,
+      post_id=post_id
     )
+
+    check_obj = VoteSelectUser.query.filter_by(post_id=post_id, user_id=user_id).all()
+    check_list = [obj.user_id for obj in check_obj]
+
+    if len(check_list) >= 1:
+      res_obj = {"message": "failed to create"}
+      status_code = 400
+      logger.info("ALREADY CREATED")
+      return res_obj, status_code
 
     try:
       db.session.add(new_vote_select)

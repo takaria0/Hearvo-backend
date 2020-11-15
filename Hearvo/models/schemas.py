@@ -2,10 +2,17 @@ from flask_marshmallow import Marshmallow
 from marshmallow_sqlalchemy import SQLAlchemyAutoSchema, fields
 from marshmallow_sqlalchemy.fields import Nested
 
-from .models import Post, User, VoteSelect, VoteSelectUser
+from .models import Post, User, VoteSelect, VoteSelectUser, Comment
 
 
 
+
+class UserGETSchema(SQLAlchemyAutoSchema):
+  class Meta:
+    model = User
+    include_relationships = True
+    exclude = ("hashed_password","vote_selects","posts","comments",)
+    
 
 
 
@@ -45,11 +52,23 @@ class VoteMjUserSchema(SQLAlchemyAutoSchema):
     pass
 
 
+
+class CommentSchema(SQLAlchemyAutoSchema):
+  class Meta:
+    model = Comment
+    include_relationships = True
+
+  user = Nested(UserSchema(exclude=("vote_selects","posts","comments",)), many=False)
+    # exclude = ("hashed_password",)
+
+
 class PostSchema(SQLAlchemyAutoSchema):
   class Meta:
     model = Post
     include_relationships = True
-    exclude = ("user",)
+    # exclude = ("user",)
 
   vote_selects = Nested(VoteSelectSchema, many=True)
+  user = Nested(UserSchema(exclude=("vote_selects","posts","comments", )), many=False)
+  # comments = Nested(CommentSchema(exclude=("user",)), many=True)
     # fields = ("id", "title", "start_at", "end_at", "content", "created_at", "updated_at")

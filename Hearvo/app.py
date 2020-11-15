@@ -32,6 +32,9 @@ elif config.setting == "prod":
 app = Flask(__name__)
 app.config['JWT_SECRET_KEY'] = config.SECRET_KET
 app.config['JWT_TOKEN_LOCATION'] = ['headers', 'query_string']
+
+# app.config['JWT_TOKEN_LOCATION'] = ['cookies']
+# app.config['JWT_COOKIE_CSRF_PROTECT'] = True
 # app.config['JWT_ACCESS_LIFESPAN'] = {'hours': 24}
 # app.config['JWT_REFRESH_LIFESPAN'] = {'days': 30}
 

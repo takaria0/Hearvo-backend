@@ -31,6 +31,7 @@ class Post(db.Model):
 
   # One to Many
   vote_selects = db.relationship("VoteSelect", backref="post")
+  comments = db.relationship("Comment", backref="post")
 
   def __repr__(self):
       return '<Post %s>' % self.title
@@ -44,9 +45,9 @@ class User(db.Model):
   __tablename__ = "user"
   
   id = db.Column(db.Integer, primary_key=True, nullable=False)
-  string_id = db.Column(db.String(20))
+  string_id = db.Column(db.String(20), unique=True)
   name = db.Column(db.String(100))
-  email = db.Column(db.String(350))
+  email = db.Column(db.String(350), unique=True)
   description = db.Column(db.String(300))
   occupation = db.Column(db.String(100))
   gender = db.Column(db.String(100))
@@ -58,6 +59,7 @@ class User(db.Model):
 
   # One to Many
   posts = db.relationship("Post", backref="user")
+  comments = db.relationship("Comment", backref="user")
 
   # Many to Many
   vote_selects = db.relationship("VoteSelect", secondary="vote_select_user")
@@ -106,6 +108,7 @@ class VoteSelectUser(db.Model):
   # Foreign Key
   vote_select_id = db.Column(db.Integer, db.ForeignKey('vote_select.id'), primary_key=True)
   user_id = db.Column(db.Integer, db.ForeignKey('user.id'), primary_key=True)
+  post_id = db.Column(db.Integer, db.ForeignKey('post.id'), primary_key=True)
 
   def __repr__(self):
       return '<VoteSelectUser %s>' % self.vote_select_id
@@ -167,3 +170,25 @@ class VoteMjUser(db.Model):
       return '<VoteMjUser %s>' % self.title
 
 
+
+#########################################
+# Comment
+#########################################
+class Comment(db.Model):
+  __tablename__ = "comment"
+
+  id = db.Column(db.Integer, primary_key=True, nullable=False)
+  parent_id = db.Column(db.Integer, nullable=True)
+
+  content = db.Column(db.String(500), nullable=True)
+
+  created_at = db.Column(db.DateTime, default=datetime.utcnow())
+  updated_at = db.Column(db.DateTime, default=datetime.utcnow(), onupdate=datetime.utcnow())
+
+  # Foreign Key
+  user_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=False)
+  post_id = db.Column(db.Integer, db.ForeignKey('post.id'), nullable=False)
+
+
+  def __repr__(self):
+      return '<Comment %s>' % self.content
