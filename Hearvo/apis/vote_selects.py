@@ -1,6 +1,6 @@
 import os
 from collections import Counter
-from datetime import datetime, date
+from datetime import datetime, timedelta, timezone, date
 
 
 from flask import request, Response, abort, jsonify, Blueprint
@@ -61,7 +61,7 @@ class CountVoteSelectResource(Resource):
     vote_selects_obj = post_obj.vote_selects
 
     vote_select_ids = [obj.id for obj in vote_selects_obj]
-    vote_select_user_obj = VoteSelectUser.query.filter(VoteSelectUser.vote_select_id.in_(vote_select_ids))
+    vote_select_user_obj = VoteSelectUser.query.filter(VoteSelectUser.vote_select_id.in_(vote_select_ids)).all()
     count_obj = {obj.user_id: obj.vote_select_id for obj in vote_select_user_obj}
     id_content_table = {obj.id: obj.content for obj in vote_selects_obj}
 
@@ -91,13 +91,13 @@ class VoteSelectUserResource(Resource):
 
     try:
       end_date = datetime.fromisoformat(end_at)
-      today = datetime.today()
+      today = datetime.now(timezone(timedelta(hours=0), 'UTC'))
 
       if end_date < today:
         end = True
       else:
         end = False
-        
+
     except:
       end = False
 

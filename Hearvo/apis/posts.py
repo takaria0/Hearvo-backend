@@ -35,7 +35,7 @@ class PostResource(Resource):
 
 
     else:
-      posts = Post.query.join(Post.vote_selects).order_by(Post.id.desc()).all()
+      posts = Post.query.join(Post.vote_selects).order_by(Post.id.desc()).limit(100).all()
       status_code = 200
       return posts_schema.dump(posts), status_code
 

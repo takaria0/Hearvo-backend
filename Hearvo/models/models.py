@@ -1,4 +1,4 @@
-from datetime import datetime
+from datetime import datetime, timedelta, timezone
 
 from flask_sqlalchemy import SQLAlchemy
 
@@ -21,10 +21,10 @@ class Post(db.Model):
   id = db.Column(db.Integer, primary_key=True, nullable=False)
   title = db.Column(db.String(100), nullable=False)
   content = db.Column(db.String(300), nullable=True)
-  start_at = db.Column(db.DateTime, default=datetime.utcnow())
+  start_at = db.Column(db.DateTime, default=datetime.now(timezone(timedelta(hours=0), 'UTC')).isoformat())
   end_at = db.Column(db.DateTime, default=None)
-  created_at = db.Column(db.DateTime, default=datetime.utcnow())
-  updated_at = db.Column(db.DateTime, default=datetime.utcnow(), onupdate=datetime.utcnow())
+  created_at = db.Column(db.DateTime, default=datetime.now(timezone(timedelta(hours=0), 'UTC')).isoformat())
+  updated_at = db.Column(db.DateTime, default=datetime.now(timezone(timedelta(hours=0), 'UTC')).isoformat(), onupdate=datetime.now(timezone(timedelta(hours=0), 'UTC')).isoformat())
 
   # Foreign Key
   user_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=False)
@@ -35,6 +35,31 @@ class Post(db.Model):
 
   def __repr__(self):
       return '<Post %s>' % self.title
+
+# #########################################
+# # PostInfo
+# #########################################
+# class PostInfo(db.Model):
+#   __tablename__ = "post"
+
+
+#   title = db.Column(db.String(100), nullable=False)
+#   content = db.Column(db.String(300), nullable=True)
+
+
+#   # Foreign Key
+#   post_id = db.Column(db.Integer, db.ForeignKey('post.id'), nullable=False)
+#   lang_id = db.Column(db.Integer, db.ForeignKey('lang.id'), nullable=False)
+#   user_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=False)
+
+#   # One to Many
+#   vote_selects = db.relationship("VoteSelect", backref="post")
+#   comments = db.relationship("Comment", backref="post")
+
+#   def __repr__(self):
+#       return '<PostInfo %s>' % self.title
+
+
 
 
 
@@ -54,8 +79,8 @@ class User(db.Model):
   age = db.Column(db.Integer)
   birthday = db.Column(db.DateTime)
   hashed_password = db.Column(db.String(150), nullable=False)
-  created_at = db.Column(db.DateTime, default=datetime.utcnow())
-  updated_at = db.Column(db.DateTime, default=datetime.utcnow(), onupdate=datetime.utcnow())
+  created_at = db.Column(db.DateTime, default=datetime.now(timezone(timedelta(hours=0), 'UTC')).isoformat())
+  updated_at = db.Column(db.DateTime, default=datetime.now(timezone(timedelta(hours=0), 'UTC')).isoformat(), onupdate=datetime.now(timezone(timedelta(hours=0), 'UTC')).isoformat())
 
   # One to Many
   posts = db.relationship("Post", backref="user")
@@ -80,8 +105,8 @@ class VoteSelect(db.Model):
   post_id = db.Column(db.String(20))
   content = db.Column(db.String(100))
   count = db.Column(db.Integer)
-  created_at = db.Column(db.DateTime, default=datetime.utcnow())
-  updated_at = db.Column(db.DateTime, default=datetime.utcnow(), onupdate=datetime.utcnow())
+  created_at = db.Column(db.DateTime, default=datetime.now(timezone(timedelta(hours=0), 'UTC')).isoformat())
+  updated_at = db.Column(db.DateTime, default=datetime.now(timezone(timedelta(hours=0), 'UTC')).isoformat(), onupdate=datetime.now(timezone(timedelta(hours=0), 'UTC')).isoformat())
 
   # Foreign Key
   post_id = db.Column(db.Integer, db.ForeignKey('post.id'))
@@ -102,8 +127,8 @@ class VoteSelectUser(db.Model):
   __tablename__ = "vote_select_user"
 
   # id = db.Column(db.Integer, primary_key=True, nullable=False)
-  created_at = db.Column(db.DateTime, default=datetime.utcnow())
-  updated_at = db.Column(db.DateTime, default=datetime.utcnow(), onupdate=datetime.utcnow())
+  created_at = db.Column(db.DateTime, default=datetime.now(timezone(timedelta(hours=0), 'UTC')).isoformat())
+  updated_at = db.Column(db.DateTime, default=datetime.now(timezone(timedelta(hours=0), 'UTC')).isoformat(), onupdate=datetime.now(timezone(timedelta(hours=0), 'UTC')).isoformat())
 
   # Foreign Key
   vote_select_id = db.Column(db.Integer, db.ForeignKey('vote_select.id'), primary_key=True)
@@ -125,8 +150,8 @@ class VoteMj(db.Model):
   post_id = db.Column(db.String(20))
   content = db.Column(db.String(100))
   count = db.Column(db.Integer)
-  created_at = db.Column(db.DateTime, default=datetime.utcnow())
-  updated_at = db.Column(db.DateTime, default=datetime.utcnow(), onupdate=datetime.utcnow())
+  created_at = db.Column(db.DateTime, default=datetime.now(timezone(timedelta(hours=0), 'UTC')).isoformat())
+  updated_at = db.Column(db.DateTime, default=datetime.now(timezone(timedelta(hours=0), 'UTC')).isoformat(), onupdate=datetime.now(timezone(timedelta(hours=0), 'UTC')).isoformat())
 
   # Foreign Key
   post_id = db.Column(db.Integer, db.ForeignKey('post.id'))
@@ -163,8 +188,8 @@ class VoteMjUser(db.Model):
   content = db.Column(db.String(100))
   count = db.Column(db.Integer)
 
-  created_at = db.Column(db.DateTime, default=datetime.utcnow())
-  updated_at = db.Column(db.DateTime, default=datetime.utcnow(), onupdate=datetime.utcnow())
+  created_at = db.Column(db.DateTime, default=datetime.now(timezone(timedelta(hours=0), 'UTC')).isoformat())
+  updated_at = db.Column(db.DateTime, default=datetime.now(timezone(timedelta(hours=0), 'UTC')).isoformat(), onupdate=datetime.now(timezone(timedelta(hours=0), 'UTC')).isoformat())
 
   def __repr__(self):
       return '<VoteMjUser %s>' % self.title
@@ -182,8 +207,8 @@ class Comment(db.Model):
 
   content = db.Column(db.String(500), nullable=True)
 
-  created_at = db.Column(db.DateTime, default=datetime.utcnow())
-  updated_at = db.Column(db.DateTime, default=datetime.utcnow(), onupdate=datetime.utcnow())
+  created_at = db.Column(db.DateTime, default=datetime.now(timezone(timedelta(hours=0), 'UTC')).isoformat())
+  updated_at = db.Column(db.DateTime, default=datetime.now(timezone(timedelta(hours=0), 'UTC')).isoformat(), onupdate=datetime.now(timezone(timedelta(hours=0), 'UTC')).isoformat())
 
   # Foreign Key
   user_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=False)
@@ -192,3 +217,16 @@ class Comment(db.Model):
 
   def __repr__(self):
       return '<Comment %s>' % self.content
+
+
+# #########################################
+# # Lang
+# #########################################
+# class Lang(db.Model):
+#   __tablename__ = "lang"
+
+#   id = db.Column(db.Integer, primary_key=True, nullable=False)
+#   language = db.Column(db.String(500), nullable=False)
+
+#   def __repr__(self):
+#       return ' Lang %s>' % self.language
