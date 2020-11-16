@@ -219,14 +219,14 @@ class Comment(db.Model):
       return '<Comment %s>' % self.content
 
 
-# #########################################
-# # Lang
-# #########################################
-# class Lang(db.Model):
-#   __tablename__ = "lang"
+#########################################
+# Lang
+#########################################
+class Lang(db.Model):
+  __tablename__ = "lang"
 
-#   id = db.Column(db.Integer, primary_key=True, nullable=False)
-#   language = db.Column(db.String(500), nullable=False)
+  id = db.Column(db.Integer, primary_key=True, nullable=False)
+  language = db.Column(db.String(500), nullable=False)
 
-#   def __repr__(self):
-#       return ' Lang %s>' % self.language
+  def __repr__(self):
+      return ' Lang %s>' % self.language
