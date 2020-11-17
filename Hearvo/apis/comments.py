@@ -9,7 +9,7 @@ import Hearvo.config as config
 from ..app import logger
 from ..models import db, Comment, CommentSchema, VoteSelect
 from .logger_api import logger_api
-from ..config import JST
+# from ..config import JST
 
 #########################################
 # Schema
@@ -45,7 +45,7 @@ class CommentResource(Resource):
   @jwt_required
   def post(self):
     logger_api("request.json", str(request.json))
-    user_id = get_jwt_identity()
+    user_info_id = get_jwt_identity()
     post_id = request.json["post_id"]
     parent_id = request.json["parent_id"]
 
@@ -55,7 +55,7 @@ class CommentResource(Resource):
     content = request.json["content"]
 
     new_comment = Comment(
-      user_id=user_id,
+      user_info_id=user_info_id,
       post_id=post_id,
       parent_id=parent_id,
       content=content,

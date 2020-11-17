@@ -24,7 +24,8 @@ logging.basicConfig()
 logger = logging.getLogger('sqlalchemy.engine')
 
 if config.setting == "dev":
-  logger.setLevel(logging.DEBUG)
+  # logger.setLevel(logging.DEBUG)
+  logger.setLevel(logging.ERROR)
 elif config.setting == "prod":
   logger.setLevel(logging.INFO)
     

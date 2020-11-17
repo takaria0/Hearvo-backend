@@ -55,3 +55,18 @@ gcloud builds submit --tag gcr.io/[project-id]/[container-name]
 if you can upload container correctly, the following part has to be easy.
 
 3. Configure Settings with Cloud SQL. set ENV correctly.
+
+
+
+
+
+# 2020 11-16~
+DB initialize
+
+vote_type
+1 vote_select
+2 vote_mj
+
+lang
+1 ja
+2 en

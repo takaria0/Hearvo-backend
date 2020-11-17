@@ -1,1 +1,1 @@
-from .middlewares import *
+from .detect_language import *
