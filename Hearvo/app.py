@@ -32,7 +32,7 @@ elif config.setting == "prod":
 
 app = Flask(__name__)
 app.config['JWT_SECRET_KEY'] = config.SECRET_KET
-app.config['JWT_TOKEN_LOCATION'] = ['headers', 'query_string']
+app.config['JWT_TOKEN_LOCATION'] = ['headers']
 
 # app.config['JWT_TOKEN_LOCATION'] = ['cookies']
 # app.config['JWT_COOKIE_CSRF_PROTECT'] = True
@@ -44,7 +44,7 @@ app.config['SQLALCHEMY_DATABASE_URI'] = config.SQLALCHEMY_DATABASE_URI
 app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
 
 db = SQLAlchemy(app)
-CORS(app, origins=config.ALLOW_ORIGIN_LIST)
+CORS(app, origins=config.ALLOW_ORIGIN_LIST, methods=["GET", "HEAD", "POST", "OPTIONS", "PUT", "PATCH", "DELETE"])
 Migrate(app, db)
 api = Api(app)
 jwt = JWTManager(app)

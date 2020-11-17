@@ -19,8 +19,8 @@ class Post(db.Model):
   __tablename__ = "post"
 
   id = db.Column(db.Integer, primary_key=True, nullable=False)
-  title = db.Column(db.String(100), nullable=False)
-  content = db.Column(db.String(300), nullable=True)
+  title = db.Column(db.String(200), nullable=False)
+  content = db.Column(db.String(5000), nullable=True)
   num_comment = db.Column(db.Integer, default=0)
   num_vote = db.Column(db.Integer, default=0)
   start_at = db.Column(db.DateTime, default=datetime.now(timezone(timedelta(hours=0), 'UTC')).isoformat())
@@ -218,7 +218,7 @@ class Comment(db.Model):
   id = db.Column(db.Integer, primary_key=True, nullable=False)
   parent_id = db.Column(db.Integer, nullable=True)
 
-  content = db.Column(db.String(500), nullable=True)
+  content = db.Column(db.String(5000), nullable=True)
 
   created_at = db.Column(db.DateTime, default=datetime.now(timezone(timedelta(hours=0), 'UTC')).isoformat())
   updated_at = db.Column(db.DateTime, default=datetime.now(timezone(timedelta(hours=0), 'UTC')).isoformat(), onupdate=datetime.now(timezone(timedelta(hours=0), 'UTC')).isoformat())
