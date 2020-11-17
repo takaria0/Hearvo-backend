@@ -31,20 +31,13 @@ if setting == "dev":
       )
 
 elif setting == "prod":
-  ALLOW_ORIGIN_LIST = [""] # add later to enable cors access fron frontend
+  ALLOW_ORIGIN_FRONT = os.environ["ALLOW_ORIGIN_FRONT"]
+  ALLOW_ORIGIN_LIST = [ALLOW_ORIGIN_FRONT] # add later to enable cors access fron 
 
-  db_user = os.environ.get("DB_USER")
-  db_pass = os.environ.get("DB_PASS")
-  db_name = os.environ.get("DB_NAME")
-  cloud_sql_connection_name = os.environ.get("CLOUD_SQL_CONNECTION_NAME")
-
+  APP_PORT = int(os.environ.get('PORT', 8080))
   DEBUG_SETTING = False
 
+  DATABASE_URL = os.environ['DATABASE_URL']
 
-  SQLALCHEMY_DATABASE_URI = "postgresql+pg8000://{db_user}:{db_password}@/{db_name}?unix_sock=/cloudsql/{cloud_sql_connection_name}/.s.PGSQL.5432".format(
-      db_user=db_user,
-      db_password=db_pass,
-      db_name=db_name,
-      cloud_sql_connection_name=cloud_sql_connection_name
-  )
+  SQLALCHEMY_DATABASE_URI = DATABASE_URL
   
