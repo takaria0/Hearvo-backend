@@ -11,8 +11,8 @@ import bcrypt
 
 import Hearvo.config as config
 from ..app import logger
-from ..models import db, User, UserSchema
-
+from ..models import db, User, UserSchema, UserInfo
+from Hearvo.middlewares.detect_language import get_lang_id
 
 #########################################
 # Schema
@@ -26,6 +26,7 @@ users_schema = UserSchema(many=True)
 class SignupResource(Resource):
 
   def post(self):
+    lang_id = get_lang_id(request.base_url)
     user_name = request.json["user_name"]
     email = request.json["email"]
     password = request.json["password"]
@@ -35,15 +36,25 @@ class SignupResource(Resource):
     salt = bcrypt.gensalt(rounds=15, prefix=b'2a') # generate salt, 2^15 = 32768
     hashed_password = bcrypt.hashpw(password.encode("utf-8"), salt).decode("utf-8") # hashed password
 
-    new_user = User(
-      name=user_name,
-      email=email,
-      hashed_password=hashed_password,
-    )
-
     try:
+      new_user = User(
+        email=email,
+        hashed_password=hashed_password,
+      )
+
       db.session.add(new_user)
+      db.session.flush()
+      # db.session.commit()
+
+      new_user_info = UserInfo(
+        name=user_name,
+        user_id=new_user.id,
+        lang_id=lang_id,
+      )
+
+      db.session.add(new_user_info)
       db.session.commit()
+
       res_obj = {"message": "Successfully created your account"}
       status_code = 200
       
@@ -62,6 +73,7 @@ class SignupResource(Resource):
 class LoginResource(Resource):
 
   def post(self):
+    lang_id = get_lang_id(request.base_url)
     email = request.json["email"]
     password = request.json["password"]
 
@@ -74,9 +86,16 @@ class LoginResource(Resource):
 
     # password matching
     if (bcrypt.checkpw(password.encode("utf-8"), hashed_password.encode("utf-8"))):
-      expires = datetime.timedelta(days=7)
-      access_token = create_access_token(identity=str(current_user.id), expires_delta=expires)
-      return {'token': access_token}, 200
+
+      user_info_obj = UserInfo.query.filter_by(
+        user_id=current_user.id,
+        lang_id=lang_id
+      ).first()
+
+      expires = datetime.timedelta(days=30)
+      access_token = create_access_token(identity=str(user_info_obj.id), expires_delta=expires)
+      # headers = {'Set-Cookie': access_token}
+      return {"token": access_token}, 200 #, headers
 
     else:
       return {"message": "Login failed"}, 400

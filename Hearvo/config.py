@@ -5,6 +5,10 @@ API_VERSION = "v1.0"
 URL_PREFIX = f"/api/{API_VERSION}"
 SECRET_KET = os.environ["SECRET_KEY"]
 
+POSTS_PER_PAGE = 20
+
+# from datetime import datetime, timedelta, timezone, timedelta, timezone
+# JST = timezone(timedelta(hours=+9), 'JST')
 
 if setting == "dev":
   ALLOW_ORIGIN_LIST = ["*"]
