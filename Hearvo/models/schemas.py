@@ -73,7 +73,7 @@ class CommentSchema(SQLAlchemyAutoSchema):
     model = Comment
     include_relationships = True
 
-  user = Nested(UserInfoSchema(exclude=("vote_selects","posts","comments",)), many=False)
+  user_info = Nested(UserInfoSchema(exclude=("vote_selects","posts","comments",)), many=False)
     # exclude = ("hashed_password",)
 
 
