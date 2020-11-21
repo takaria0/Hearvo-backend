@@ -27,10 +27,23 @@ class SignupResource(Resource):
 
   def post(self):
     lang_id = get_lang_id(request.base_url)
-    user_name = request.json["user_name"]
-    email = request.json["email"]
+    user_name = request.json["user_name"].lower()
+    email = request.json["email"].lower()
     password = request.json["password"]
 
+    check_email = User.query.filter_by(email=email).first()
+    check_user_name = UserInfo.query.filter_by(name=user_name).first()
+
+    if (check_email is not None):
+      res_obj =  {"message": "このメールアドレスは既に使われています"}
+      status_code = 400
+      return res_obj, status_code
+
+    if (check_user_name is not None):
+      res_obj =  {"message": "このユーザーネームは既に使われています"}
+      status_code = 400
+      return res_obj, status_code
+        
     # generate hashed password using bcrypt.
     # for more info, look for the doc of bcrypt
     salt = bcrypt.gensalt(rounds=15, prefix=b'2a') # generate salt, 2^15 = 32768
@@ -44,7 +57,6 @@ class SignupResource(Resource):
 
       db.session.add(new_user)
       db.session.flush()
-      # db.session.commit()
 
       new_user_info = UserInfo(
         name=user_name,
@@ -74,7 +86,7 @@ class LoginResource(Resource):
 
   def post(self):
     lang_id = get_lang_id(request.base_url)
-    email = request.json["email"]
+    email = request.json["email"].lower()
     password = request.json["password"]
 
     current_user = User.query.filter_by(email=email).first()
