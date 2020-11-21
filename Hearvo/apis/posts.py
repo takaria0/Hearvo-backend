@@ -63,6 +63,7 @@ class PostResource(Resource):
   @jwt_required
   def get(self):
     logger_api("request.base_url", request.base_url)
+    
     lang_id = get_lang_id(request.base_url)
     user_info_id = get_jwt_identity()
 
@@ -112,6 +113,7 @@ class PostResource(Resource):
   @jwt_required
   def post(self):
     logger_api("request.json", str(request.json))
+    content = request.get_json(force=True)
     lang_id = get_lang_id(request.base_url)
     user_info_id = get_jwt_identity()
 
