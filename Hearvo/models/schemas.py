@@ -2,7 +2,7 @@ from flask_marshmallow import Marshmallow
 from marshmallow_sqlalchemy import SQLAlchemyAutoSchema, fields
 from marshmallow_sqlalchemy.fields import Nested
 
-from .models import Post, User, VoteSelect, VoteSelectUser, Comment, UserInfo
+from .models import Post, User, VoteSelect, VoteSelectUser, Comment, UserInfo, VoteType, VoteMj, MjOption
 
 
 
@@ -53,18 +53,30 @@ class VoteSelectUserSchema(SQLAlchemyAutoSchema):
 
 class VoteMjSchema(SQLAlchemyAutoSchema):
   class Meta:
-    pass
+    model = VoteMj
+    include_relationships = True
+    exclude = ("post",)
 
 
 
 class MjOptionSchema(SQLAlchemyAutoSchema):
   class Meta:
-    pass
+    model = MjOption
+    include_relationships = True
+    exclude = ("post",)
+
+
 
 
 class VoteMjUserSchema(SQLAlchemyAutoSchema):
   class Meta:
     pass
+
+class VoteTypeSchema(SQLAlchemyAutoSchema):
+  class Meta:
+    model = VoteType
+    include_relationships = True
+    exclude = ("posts",)
 
 
 
@@ -84,6 +96,10 @@ class PostSchema(SQLAlchemyAutoSchema):
     # exclude = ("user",)
 
   vote_selects = Nested(VoteSelectSchema, many=True)
+  vote_mjs = Nested(VoteMjSchema, many=True)
+  mj_options = Nested(MjOptionSchema, many=True)
   user_info = Nested(UserInfoSchema(exclude=("vote_selects","posts","comments", )), many=False)
+  vote_type = Nested(VoteTypeSchema(many=False))
+
   # comments = Nested(CommentSchema(exclude=("user",)), many=True)
     # fields = ("id", "title", "start_at", "end_at", "content", "created_at", "updated_at")
