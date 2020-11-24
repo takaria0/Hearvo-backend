@@ -261,18 +261,32 @@ class PostResource(Resource):
       logger_api("request.args['keyword']", request.args["keyword"])
 
       if keyword == "popular":
+        time = request.args["time"] if ("time" in request.args.keys()) and (request.args["time"] != "") else None
+
+        if time == "today":
+          yesterday_datetime = (datetime.now(timezone(timedelta(hours=0), 'UTC')) - timedelta(days=1)).isoformat()
+        elif time == "now":
+          yesterday_datetime = (datetime.now(timezone(timedelta(hours=0), 'UTC')) - timedelta(hours=1)).isoformat()
+        elif time == "week":
+          yesterday_datetime = (datetime.now(timezone(timedelta(hours=0), 'UTC')) - timedelta(days=7)).isoformat()
+        elif time == "month":
+          yesterday_datetime = (datetime.now(timezone(timedelta(hours=0), 'UTC')) - timedelta(days=30)).isoformat()
+        else:
+          yesterday_datetime = (datetime.now(timezone(timedelta(hours=0), 'UTC')) - timedelta(days=1)).isoformat()
+
+
         """
         GET TODAY'S POPULAR POSTS BASED ON NUM_VOTES
         """
-        yesterday_datetime = (datetime.now(timezone(timedelta(hours=0), 'UTC')) - timedelta(days=1)).isoformat()
-        posts = Post.query.distinct().filter(Post.lang_id == lang_id, Post.created_at > yesterday_datetime).join(Post.vote_selects, isouter=True).join(Post.vote_mjs, isouter=True).join(Post.mj_options, isouter=True).order_by(Post.num_vote.desc()).paginate(page, per_page=config.POSTS_PER_PAGE).items
+        
+        posts = Post.query.filter(Post.lang_id == lang_id, Post.created_at > yesterday_datetime).join(Post.vote_selects, isouter=True).join(Post.vote_mjs, isouter=True).join(Post.mj_options, isouter=True).order_by(Post.num_vote.desc()).distinct().paginate(page, per_page=config.POSTS_PER_PAGE).items
         status_code = 200
         post_obj = posts_schema.dump(posts)
         count_vote_obj = self._count_vote(post_obj, user_info_id)
         return count_vote_obj, status_code
 
       elif keyword == "latest":
-        posts = Post.query.distinct().filter_by(lang_id=lang_id).join(Post.vote_selects, isouter=True).join(Post.vote_mjs, isouter=True).join(Post.mj_options, isouter=True).order_by(Post.id.desc()).paginate(page, per_page=config.POSTS_PER_PAGE).items
+        posts = Post.query.filter_by(lang_id=lang_id).join(Post.vote_selects, isouter=True).join(Post.vote_mjs, isouter=True).join(Post.mj_options, isouter=True).order_by(Post.id.desc()).distinct().paginate(page, per_page=config.POSTS_PER_PAGE).items
         status_code = 200
         post_obj = posts_schema.dump(posts)
         count_vote_obj = self._count_vote(post_obj, user_info_id)
@@ -300,7 +314,7 @@ class PostResource(Resource):
         return {}, 200
 
     else:
-      posts = Post.query.distinct().filter_by(lang_id=lang_id).join(Post.vote_selects, isouter=True).join(Post.vote_mjs, isouter=True).join(Post.mj_options, isouter=True).order_by(Post.id.desc()).paginate(page, per_page=config.POSTS_PER_PAGE).items
+      posts = Post.query.filter_by(lang_id=lang_id).join(Post.vote_selects, isouter=True).join(Post.vote_mjs, isouter=True).join(Post.mj_options, isouter=True).order_by(Post.id.desc()).distinct().paginate(page, per_page=config.POSTS_PER_PAGE).items
       status_code = 200
       post_obj = posts_schema.dump(posts)
       count_vote_obj = self._count_vote(post_obj, user_info_id)
@@ -367,7 +381,7 @@ class PostResource(Resource):
       db.session.flush()
 
       post_id = new_post.id
-      mj_option_list = ["最高", "良い", "やや良い", "普通", "やや悪い", "悪い", "最悪"]
+      mj_option_list = ["良い", "やや良い", "普通", "やや悪い", "悪い"]
       new_mj_option = [MjOption(post_id=post_id, lang_id=lang_id, content=cont) for cont in mj_option_list]
       logger_api("new_mj_option", new_mj_option)
       db.session.bulk_save_objects(new_mj_option)
