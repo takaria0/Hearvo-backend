@@ -264,7 +264,7 @@ class PostResource(Resource):
         time = request.args["time"] if ("time" in request.args.keys()) and (request.args["time"] != "") else None
 
         if time == "today":
-          yesterday_datetime = (datetime.now(timezone(timedelta(hours=0), 'UTC')) - timedelta(days=1)).isoformat()
+          yesterday_datetime = (datetime.now(timezone(timedelta(hours=0), 'UTC')) - timedelta(hours=24)).isoformat()
         elif time == "now":
           yesterday_datetime = (datetime.now(timezone(timedelta(hours=0), 'UTC')) - timedelta(hours=1)).isoformat()
         elif time == "week":
@@ -272,7 +272,7 @@ class PostResource(Resource):
         elif time == "month":
           yesterday_datetime = (datetime.now(timezone(timedelta(hours=0), 'UTC')) - timedelta(days=30)).isoformat()
         else:
-          yesterday_datetime = (datetime.now(timezone(timedelta(hours=0), 'UTC')) - timedelta(days=1)).isoformat()
+          yesterday_datetime = (datetime.now(timezone(timedelta(hours=0), 'UTC')) - timedelta(hours=24)).isoformat()
 
 
         """
