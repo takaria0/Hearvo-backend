@@ -2,7 +2,7 @@ import os
 
 from flask import request, Response, abort, jsonify, Blueprint
 from flask_restful import Resource
-from flask_jwt_extended import jwt_required, get_jwt_identity
+from flask_jwt_extended import jwt_required, get_jwt_identity, jwt_optional, verify_jwt_in_request_optional
 from datetime import datetime, timedelta, timezone
 
 import Hearvo.config as config
@@ -22,8 +22,13 @@ comments_schema = CommentSchema(many=True)
 #########################################
 class CommentResource(Resource):
 
-  @jwt_required
   def get(self):
+    try:
+      verify_jwt_in_request_optional()
+      user_info_id = get_jwt_identity()
+    except :
+      user_info_id = None
+
     if len(request.args) == 0:
       comments = Comment.query.all()
       status_code = 200

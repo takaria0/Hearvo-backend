@@ -115,8 +115,11 @@ class VoteSelectUserResource(Resource):
   def post(self):
     logger_api("request.json", request.json)
     user_info_id = get_jwt_identity()
+    logger_api("user_info_id", user_info_id)
     vote_select_id = request.json["vote_select_id"]
     post_id = request.json["post_id"]
+    logger_api("vote_select_id", vote_select_id)
+    logger_api("post_id", post_id)
     new_vote_select = VoteSelectUser(
       vote_select_id=vote_select_id,
       user_info_id=user_info_id,
@@ -134,13 +137,16 @@ class VoteSelectUserResource(Resource):
 
     check_obj = VoteSelectUser.query.filter_by(post_id=post_id, user_info_id=user_info_id).all()
     check_list = [obj.user_info_id for obj in check_obj]
-
+    logger_api("aaaaaaaa", vote_select_id)
+    logger_api("bbbbbbbbb", post_id)
+    logger_api("check_list", check_list)
     if len(check_list) >= 1:
       res_obj = {"message": "failed to create"}
-      status_code = 400
+      status_code = 200
       logger.info("ALREADY CREATED")
-      return res_obj, status_code
-
+      return res_obj, 
+      
+    logger_api("cccccc", post_id)
     try:
       db.session.add(new_vote_select)
       db.session.add(post_obj)
