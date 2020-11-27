@@ -64,6 +64,7 @@ class CommentResource(Resource):
       post_id=post_id,
       parent_id=parent_id,
       content=content,
+      created_at=datetime.now(timezone(timedelta(hours=0), 'UTC')).isoformat()
     )
 
     logger_api("new_comment", str(new_comment))

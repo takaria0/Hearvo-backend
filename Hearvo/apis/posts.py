@@ -363,6 +363,7 @@ class PostResource(Resource):
         end_at=end_at,
         vote_selects=vote_obj_list,
         vote_type_id=1,
+        created_at=datetime.now(timezone(timedelta(hours=0), 'UTC')).isoformat()
       )
 
       # try:
