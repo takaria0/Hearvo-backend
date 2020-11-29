@@ -125,22 +125,23 @@ class VoteMjUserResource(Resource):
 
     post_obj = Post.query.get(post_id)
     post_obj.num_vote = post_obj.num_vote + 1
-
+    logger_api("post_id", post_id)
     user_info_post_voted_obj = UserInfoPostVoted(
       user_info_id=user_info_id,
       post_id=post_id,
       vote_type_id=2,
     )
-
+    logger_api("1", 1)
     check_obj = VoteMjUser.query.filter_by(post_id=post_id, user_info_id=user_info_id).all()
     check_list = [obj.user_info_id for obj in check_obj]
-
+    logger_api("2", 2)
+    logger_api("check_list", check_list)
     if len(check_list) >= 1:
       res_obj = {"message": "failed to create"}
-      status_code = 400
+      status_code = 200
       logger.info("ALREADY CREATED")
       return res_obj, status_code
-
+    logger_api("aaaaaa", check_list)
     try:
       db.session.bulk_save_objects(new_vote_mj_list)
       db.session.add(post_obj)

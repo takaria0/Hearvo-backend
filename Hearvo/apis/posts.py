@@ -5,7 +5,8 @@ import json
 
 from flask import request, Response, abort, jsonify, Blueprint
 from flask_restful import Resource
-from flask_jwt_extended import jwt_required, get_jwt_identity
+from flask_jwt_extended import jwt_required, get_jwt_identity, jwt_optional, verify_jwt_in_request_optional
+from sqlalchemy import or_
 
 import Hearvo.config as config
 from ..app import logger
@@ -227,13 +228,17 @@ class PostResource(Resource):
 
 
 
-  @jwt_required
   def get(self):
     logger_api("request.base_url", request.base_url)
     
     lang_id = get_lang_id(request.base_url)
-    user_info_id = get_jwt_identity()
+    try:
+      verify_jwt_in_request_optional()
+      user_info_id = get_jwt_identity()
+    except :
+      user_info_id = None
 
+    logger_api("user_info_id", user_info_id)
     if "id" in request.args.keys():
       do_filter = request.args["do_filter"] if "do_filter" in request.args.keys() else "no"
 
@@ -264,7 +269,7 @@ class PostResource(Resource):
         time = request.args["time"] if ("time" in request.args.keys()) and (request.args["time"] != "") else None
 
         if time == "today":
-          yesterday_datetime = (datetime.now(timezone(timedelta(hours=0), 'UTC')) - timedelta(days=1)).isoformat()
+          yesterday_datetime = (datetime.now(timezone(timedelta(hours=0), 'UTC')) - timedelta(hours=24)).isoformat()
         elif time == "now":
           yesterday_datetime = (datetime.now(timezone(timedelta(hours=0), 'UTC')) - timedelta(hours=1)).isoformat()
         elif time == "week":
@@ -272,7 +277,7 @@ class PostResource(Resource):
         elif time == "month":
           yesterday_datetime = (datetime.now(timezone(timedelta(hours=0), 'UTC')) - timedelta(days=30)).isoformat()
         else:
-          yesterday_datetime = (datetime.now(timezone(timedelta(hours=0), 'UTC')) - timedelta(days=1)).isoformat()
+          yesterday_datetime = (datetime.now(timezone(timedelta(hours=0), 'UTC')) - timedelta(hours=24)).isoformat()
 
 
         """
@@ -313,6 +318,16 @@ class PostResource(Resource):
       else:
         return {}, 200
 
+    elif "search" in request.args.keys() and "page" in request.args.keys():
+      search = request.args["search"]
+      page = int(request.args["page"])
+      posts = Post.query.filter(Post.lang_id==lang_id, or_(Post.content.contains(search), Post.title.contains(search))).join(Post.vote_selects, isouter=True).join(Post.vote_mjs, isouter=True).join(Post.mj_options, isouter=True).order_by(Post.id.desc()).distinct().paginate(page, per_page=config.POSTS_PER_PAGE).items
+      status_code = 200
+      post_obj = posts_schema.dump(posts)
+      count_vote_obj = self._count_vote(post_obj, user_info_id)
+      return count_vote_obj, status_code
+      pass
+
     else:
       posts = Post.query.filter_by(lang_id=lang_id).join(Post.vote_selects, isouter=True).join(Post.vote_mjs, isouter=True).join(Post.mj_options, isouter=True).order_by(Post.id.desc()).distinct().paginate(page, per_page=config.POSTS_PER_PAGE).items
       status_code = 200
@@ -348,6 +363,7 @@ class PostResource(Resource):
         end_at=end_at,
         vote_selects=vote_obj_list,
         vote_type_id=1,
+        created_at=datetime.now(timezone(timedelta(hours=0), 'UTC')).isoformat()
       )
 
       # try:
