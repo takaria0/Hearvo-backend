@@ -8,7 +8,7 @@ from flask_restful import Resource
 from flask_jwt_extended import jwt_required, get_jwt_identity
 
 import Hearvo.config as config
-from ..app import logger
+from ..app import logger, cache
 from ..models import db, VoteSelect, VoteSelectSchema, VoteSelectUser, Post, UserInfoPostVoted
 from .logger_api import logger_api
 
@@ -137,21 +137,24 @@ class VoteSelectUserResource(Resource):
 
     check_obj = VoteSelectUser.query.filter_by(post_id=post_id, user_info_id=user_info_id).all()
     check_list = [obj.user_info_id for obj in check_obj]
-    logger_api("aaaaaaaa", vote_select_id)
-    logger_api("bbbbbbbbb", post_id)
-    logger_api("check_list", check_list)
     if len(check_list) >= 1:
       res_obj = {"message": "failed to create"}
       status_code = 200
       logger.info("ALREADY CREATED")
       return res_obj, 
       
-    logger_api("cccccc", post_id)
     try:
       db.session.add(new_vote_select)
       db.session.add(post_obj)
       db.session.add(user_info_post_voted_obj)
       db.session.commit()
+
+      POPULAR_CACHE_LIST = []
+      for idx in range(1,21):
+        for time in ["now", "today", "week", "month"]:
+          POPULAR_CACHE_LIST.append('popular_posts_page_{}_time_{}'.format(page, time))
+      cache.delete_many(*POPULAR_CACHE_LIST)
+
       res_obj = {"message": "created"}
       status_code = 200
     except:

@@ -6,7 +6,7 @@
 from Hearvo.models import Lang, db, VoteType
 db.create_all()
 
-lang_1 = Lang(language="ja")
+lang_1 = Lang(language="jp")
 lang_2 = Lang(language="en")
 
 db.session.add(lang_1)

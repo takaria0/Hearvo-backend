@@ -9,7 +9,7 @@ from flask_jwt_extended import jwt_required, get_jwt_identity, jwt_optional, ver
 from sqlalchemy import or_
 
 import Hearvo.config as config
-from ..app import logger
+from ..app import logger, cache
 from ..models import db, Post, PostSchema, VoteSelect, VoteSelectUser, UserInfoPostVoted, UserInfo, VoteMj, MjOption, VoteMjUser
 
 from .logger_api import logger_api
@@ -231,6 +231,11 @@ class PostResource(Resource):
   def get(self):
     logger_api("request.base_url", request.base_url)
     
+    if "page" in request.args.keys():
+      page = int(request.args["page"])
+      if page > 20:
+        return {}, 200
+
     lang_id = get_lang_id(request.base_url)
     try:
       verify_jwt_in_request_optional()
@@ -264,37 +269,43 @@ class PostResource(Resource):
       keyword = request.args["keyword"]
       page = int(request.args["page"])
       logger_api("request.args['keyword']", request.args["keyword"])
-
+      
       if keyword == "popular":
         time = request.args["time"] if ("time" in request.args.keys()) and (request.args["time"] != "") else None
-
-        if time == "today":
-          yesterday_datetime = (datetime.now(timezone(timedelta(hours=0), 'UTC')) - timedelta(hours=24)).isoformat()
-        elif time == "now":
-          yesterday_datetime = (datetime.now(timezone(timedelta(hours=0), 'UTC')) - timedelta(hours=1)).isoformat()
-        elif time == "week":
-          yesterday_datetime = (datetime.now(timezone(timedelta(hours=0), 'UTC')) - timedelta(days=7)).isoformat()
-        elif time == "month":
-          yesterday_datetime = (datetime.now(timezone(timedelta(hours=0), 'UTC')) - timedelta(days=30)).isoformat()
-        else:
-          yesterday_datetime = (datetime.now(timezone(timedelta(hours=0), 'UTC')) - timedelta(hours=24)).isoformat()
-
-
-        """
-        GET TODAY'S POPULAR POSTS BASED ON NUM_VOTES
-        """
-        
-        posts = Post.query.filter(Post.lang_id == lang_id, Post.created_at > yesterday_datetime).join(Post.vote_selects, isouter=True).join(Post.vote_mjs, isouter=True).join(Post.mj_options, isouter=True).order_by(Post.num_vote.desc()).distinct().paginate(page, per_page=config.POSTS_PER_PAGE).items
+        count_vote_obj = cache.get('popular_posts_page_{}_time_{}'.format(page, time))
         status_code = 200
-        post_obj = posts_schema.dump(posts)
-        count_vote_obj = self._count_vote(post_obj, user_info_id)
+        logger_api("popular cache hit or not", (count_vote_obj is not None))
+        if count_vote_obj is None:
+          if time == "today":
+            yesterday_datetime = (datetime.now(timezone(timedelta(hours=0), 'UTC')) - timedelta(hours=24)).isoformat()
+          elif time == "now":
+            yesterday_datetime = (datetime.now(timezone(timedelta(hours=0), 'UTC')) - timedelta(hours=1)).isoformat()
+          elif time == "week":
+            yesterday_datetime = (datetime.now(timezone(timedelta(hours=0), 'UTC')) - timedelta(days=7)).isoformat()
+          elif time == "month":
+            yesterday_datetime = (datetime.now(timezone(timedelta(hours=0), 'UTC')) - timedelta(days=30)).isoformat()
+          else:
+            yesterday_datetime = (datetime.now(timezone(timedelta(hours=0), 'UTC')) - timedelta(hours=24)).isoformat()
+
+          
+          posts = Post.query.filter(Post.lang_id == lang_id, Post.created_at > yesterday_datetime).join(Post.vote_selects, isouter=True).join(Post.vote_mjs, isouter=True).join(Post.mj_options, isouter=True).order_by(Post.num_vote.desc()).distinct().paginate(page, per_page=config.POSTS_PER_PAGE).items
+          
+          post_obj = posts_schema.dump(posts)
+          count_vote_obj = self._count_vote(post_obj, user_info_id)
+          cache.set('popular_posts_page_{}_time_{}'.format(page, time), count_vote_obj)
         return count_vote_obj, status_code
 
       elif keyword == "latest":
-        posts = Post.query.filter_by(lang_id=lang_id).join(Post.vote_selects, isouter=True).join(Post.vote_mjs, isouter=True).join(Post.mj_options, isouter=True).order_by(Post.id.desc()).distinct().paginate(page, per_page=config.POSTS_PER_PAGE).items
+        count_vote_obj = cache.get('latest_posts_page_{}'.format(page))
         status_code = 200
-        post_obj = posts_schema.dump(posts)
-        count_vote_obj = self._count_vote(post_obj, user_info_id)
+        logger_api("latest cache hit or not", (count_vote_obj is not None))
+        if count_vote_obj is None:
+          posts = Post.query.filter_by(lang_id=lang_id).join(Post.vote_selects, isouter=True).join(Post.vote_mjs, isouter=True).join(Post.mj_options, isouter=True).order_by(Post.id.desc()).distinct().paginate(page, per_page=config.POSTS_PER_PAGE).items
+          
+          post_obj = posts_schema.dump(posts)
+          count_vote_obj = self._count_vote(post_obj, user_info_id)
+          cache.set('latest_posts_page_{}'.format(page), count_vote_obj)
+
         return count_vote_obj, status_code
 
       elif keyword == "myposts":
@@ -369,6 +380,7 @@ class PostResource(Resource):
       # try:
       db.session.add(new_post)
       db.session.commit()
+      cache.delete_many(*['latest_posts_page_{}'.format(page) for page in range(1,21)])
       status_code = 200
       return post_schema.dump(new_post), status_code
       # except:
@@ -402,6 +414,8 @@ class PostResource(Resource):
       logger_api("new_mj_option", new_mj_option)
       db.session.bulk_save_objects(new_mj_option)
       db.session.commit()
+
+      cache.delete_many(*['latest_posts_page_{}'.format(page) for page in range(1,21)])
 
       status_code = 200
       return post_schema.dump(new_post), status_code

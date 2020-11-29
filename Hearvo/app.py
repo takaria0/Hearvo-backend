@@ -14,6 +14,7 @@ from flask_jwt_extended import (
     get_jwt_identity
 )
 from flask_cors import CORS
+from flask_caching import Cache
 
 
 
@@ -44,6 +45,8 @@ app.config['SQLALCHEMY_DATABASE_URI'] = config.SQLALCHEMY_DATABASE_URI
 app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
 
 db = SQLAlchemy(app)
+cache = Cache()
+cache.init_app(app, config=config.cache_config)
 CORS(app, origins=config.ALLOW_ORIGIN_LIST, methods=["GET", "HEAD", "POST", "OPTIONS", "PUT", "PATCH", "DELETE"])
 Migrate(app, db)
 api = Api(app)

@@ -9,12 +9,19 @@ COPY ./requirements.dev.txt /app/requirements.dev.txt
 
 WORKDIR /app
 
+RUN apt-get update && apt-get install -y \
+  libmemcached11 \
+  libmemcachedutil2 \
+  libmemcached-dev \
+  libz-dev
+
 RUN pip install -r requirements.dev.txt
 
 COPY . /app
 COPY wait-for-it.sh /wait-for-it.sh
 RUN chmod +x ./wait-for-it.sh
 RUN chmod +x ./entrypoint.sh
+
 
 # add the 'postgres' admin role
 # USER postgres
