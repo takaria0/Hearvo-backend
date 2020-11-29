@@ -149,10 +149,11 @@ class VoteMjUserResource(Resource):
       db.session.commit()
 
       POPULAR_CACHE_LIST = []
-      for idx in range(1,21):
+      for page in range(1,21):
         for time in ["now", "today", "week", "month"]:
           POPULAR_CACHE_LIST.append('popular_posts_page_{}_time_{}'.format(page, time))
       cache.delete_many(*POPULAR_CACHE_LIST)
+      cache.delete_many(*['latest_posts_page_{}'.format(page) for page in range(1,21)])
 
       res_obj = {"message": "created"}
       status_code = 200
@@ -162,7 +163,6 @@ class VoteMjUserResource(Resource):
       status_code = 400
     finally:
       pass
-      # db.session.close()
 
 
     return res_obj, status_code

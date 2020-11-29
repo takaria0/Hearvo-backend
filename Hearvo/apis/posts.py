@@ -331,13 +331,17 @@ class PostResource(Resource):
 
     elif "search" in request.args.keys() and "page" in request.args.keys():
       search = request.args["search"]
+
+      if "type" in request.args.keys():
+        if request.args["type"] == "hash_tag":
+          search = "#" + search
+
       page = int(request.args["page"])
       posts = Post.query.filter(Post.lang_id==lang_id, or_(Post.content.contains(search), Post.title.contains(search))).join(Post.vote_selects, isouter=True).join(Post.vote_mjs, isouter=True).join(Post.mj_options, isouter=True).order_by(Post.id.desc()).distinct().paginate(page, per_page=config.POSTS_PER_PAGE).items
       status_code = 200
       post_obj = posts_schema.dump(posts)
       count_vote_obj = self._count_vote(post_obj, user_info_id)
       return count_vote_obj, status_code
-      pass
 
     else:
       posts = Post.query.filter_by(lang_id=lang_id).join(Post.vote_selects, isouter=True).join(Post.vote_mjs, isouter=True).join(Post.mj_options, isouter=True).order_by(Post.id.desc()).distinct().paginate(page, per_page=config.POSTS_PER_PAGE).items
