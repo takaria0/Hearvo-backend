@@ -8,7 +8,7 @@ from flask_restful import Resource
 from flask_jwt_extended import jwt_required, get_jwt_identity
 
 import Hearvo.config as config
-from ..app import logger
+from ..app import logger, cache
 from ..models import db, VoteMj, VoteMjSchema, VoteMjUser, Post, UserInfoPostVoted, MjOption
 from .logger_api import logger_api
 
@@ -147,6 +147,14 @@ class VoteMjUserResource(Resource):
       db.session.add(post_obj)
       db.session.add(user_info_post_voted_obj)
       db.session.commit()
+
+      POPULAR_CACHE_LIST = []
+      for page in range(1,21):
+        for time in ["now", "today", "week", "month"]:
+          POPULAR_CACHE_LIST.append('popular_posts_page_{}_time_{}'.format(page, time))
+      cache.delete_many(*POPULAR_CACHE_LIST)
+      cache.delete_many(*['latest_posts_page_{}'.format(page) for page in range(1,21)])
+
       res_obj = {"message": "created"}
       status_code = 200
     except:
@@ -155,7 +163,6 @@ class VoteMjUserResource(Resource):
       status_code = 400
     finally:
       pass
-      # db.session.close()
 
 
     return res_obj, status_code
