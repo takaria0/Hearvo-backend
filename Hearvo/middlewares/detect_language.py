@@ -14,7 +14,7 @@ def get_lang_id(base_url):
 
   logger_api("ext", ext)
 
-  if subdomain is '' or subdomain is None:
+  if subdomain == '' or subdomain is None:
     subdomain = 'jp'
 
   try:
