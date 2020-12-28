@@ -31,7 +31,8 @@ if setting == "dev":
       )
 
   cache_config = {
-    'CACHE_TYPE': 'simple'
+    'CACHE_TYPE': 'simple',
+    'CACHE_DEFAULT_TIMEOUT': 60 * 5, # sec
   }
 
 elif setting == "prod":
@@ -50,7 +51,7 @@ elif setting == "prod":
   MEMCACHIER_PASSWORD = os.environ.get('MEMCACHIER_PASSWORD') or ''
   cache_config = {
     'CACHE_TYPE': 'saslmemcached',
-    'CACHE_DEFAULT_TIMEOUT': 60 * 60, # sec
+    'CACHE_DEFAULT_TIMEOUT': 60 * 5, # sec
     'CACHE_MEMCACHED_SERVERS': MEMCACHIER_SERVERS.split(','),
     'CACHE_MEMCACHED_USERNAME': MEMCACHIER_USERNAME,
     'CACHE_MEMCACHED_PASSWORD': MEMCACHIER_PASSWORD,

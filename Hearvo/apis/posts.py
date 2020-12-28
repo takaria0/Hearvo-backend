@@ -14,6 +14,7 @@ from ..models import db, Post, PostSchema, VoteSelect, VoteSelectUser, UserInfoP
 
 from .logger_api import logger_api
 from Hearvo.middlewares.detect_language import get_lang_id
+from Hearvo.utils import cache_delete_latest_posts, cache_delete_all_posts
 
 #########################################
 # Schema
@@ -384,7 +385,9 @@ class PostResource(Resource):
       # try:
       db.session.add(new_post)
       db.session.commit()
-      cache.delete_many(*['latest_posts_page_{}'.format(page) for page in range(1,21)])
+
+      cache_delete_all_posts()
+
       status_code = 200
       return post_schema.dump(new_post), status_code
       # except:
@@ -419,7 +422,7 @@ class PostResource(Resource):
       db.session.bulk_save_objects(new_mj_option)
       db.session.commit()
 
-      cache.delete_many(*['latest_posts_page_{}'.format(page) for page in range(1,21)])
+      cache_delete_all_posts()
 
       status_code = 200
       return post_schema.dump(new_post), status_code
