@@ -2,7 +2,15 @@ from flask_marshmallow import Marshmallow
 from marshmallow_sqlalchemy import SQLAlchemyAutoSchema, fields
 from marshmallow_sqlalchemy.fields import Nested
 
-from .models import Post, User, VoteSelect, VoteSelectUser, Comment, UserInfo, VoteType, VoteMj, MjOption
+from .models import Post, User, VoteSelect, VoteSelectUser, Comment, UserInfo, VoteType, VoteMj, MjOption, Topic, PostTopic, UserInfoTopic
+
+
+class TopicSchema(SQLAlchemyAutoSchema):
+  class Meta:
+    model = Topic
+    include_relationships = True
+    # exclude = ("hashed_password",)
+    
 
 
 
