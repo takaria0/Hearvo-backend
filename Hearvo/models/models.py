@@ -38,6 +38,7 @@ class Post(db.Model):
   vote_mjs = db.relationship("VoteMj", backref="post")
   mj_options = db.relationship("MjOption", backref="post")
   comments = db.relationship("Comment", backref="post")
+  topics = db.relationship("PostTopic", backref="post")
 
   def __repr__(self):
       return '<Post %s>' % self.title
@@ -330,5 +331,6 @@ class PostTopic(db.Model):
   post_id = db.Column(db.Integer, db.ForeignKey('post.id'), nullable=False)
   topic_id = db.Column(db.Integer, db.ForeignKey('topic.id'), nullable=False)
 
+  topic = db.relationship("Topic", backref="post_topic")
 
 
