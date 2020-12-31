@@ -67,12 +67,12 @@ class SignupResource(Resource):
       db.session.add(new_user_info)
       db.session.commit()
 
-      res_obj = {"message": "Successfully created your account"}
+      res_obj = {"message": "アカウントを作成しました"}
       status_code = 200
       
     except:
       db.session.rollback()
-      res_obj =  {"message": "Couldn't create your account"}
+      res_obj =  {"message": "アカウントの作成に失敗しました"}
       status_code = 400
 
     finally:
@@ -92,7 +92,7 @@ class LoginResource(Resource):
     current_user = User.query.filter_by(email=email).first()
 
     if not current_user:
-      return {"message": "Login failed"}, 400
+      return {"message": "ログインに失敗しました"}, 401
 
     hashed_password = current_user.hashed_password
 
@@ -110,7 +110,7 @@ class LoginResource(Resource):
       return {"token": access_token}, 200 #, headers
 
     else:
-      return {"message": "Login failed"}, 400
+      return {"message": "ログインに失敗しました"}, 401
 
 
     
