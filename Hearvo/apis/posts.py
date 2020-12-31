@@ -10,10 +10,11 @@ from sqlalchemy import or_
 
 import Hearvo.config as config
 from ..app import logger, cache
-from ..models import db, Post, PostSchema, VoteSelect, VoteSelectUser, UserInfoPostVoted, UserInfo, VoteMj, MjOption, VoteMjUser
+from ..models import db, Post, PostSchema, VoteSelect, VoteSelectUser, UserInfoPostVoted, UserInfo, VoteMj, MjOption, VoteMjUser, Topic, PostTopic
 
 from .logger_api import logger_api
 from Hearvo.middlewares.detect_language import get_lang_id
+from Hearvo.utils import cache_delete_latest_posts, cache_delete_all_posts
 
 #########################################
 # Schema
@@ -25,6 +26,32 @@ posts_schema = PostSchema(many=True)
 # Routes to handle API
 #########################################
 class PostResource(Resource):
+
+  def _save_unique_topic(self, topic_list, lang_id):
+    """
+    check Topic Table and insert new topics to DB
+    return topic ids
+    """
+    topic_ids = []
+    fetched_data = Topic.query.filter(Topic.topic.in_(topic_list)).all()
+    topic_in_db = [data.topic for data in fetched_data]
+    
+    save_data = []
+    for topic in topic_list:
+      if topic in topic_in_db:
+        pass
+      else:
+        save_data.append(Topic(topic=topic, lang_id=lang_id))
+
+    for data in save_data:
+      db.session.add(data)
+    db.session.flush()
+
+    existed_ids = [data.id for data in fetched_data]
+    created_ids = [data.id for data in save_data]
+
+    topic_ids = existed_ids + created_ids
+    return topic_ids
 
   def _string_check(self, content):
     if (len(content.replace(" ", "")) == 0):
@@ -365,7 +392,7 @@ class PostResource(Resource):
     end_at = data['end_at']
     vote_obj = data["vote_obj"]
     vote_type_id = data["vote_type_id"]
-    
+    topic_list = data["topic"]
 
     if vote_type_id == "1":
       vote_obj_list = [VoteSelect(content=obj["content"]) for obj in vote_obj]
@@ -383,8 +410,18 @@ class PostResource(Resource):
 
       # try:
       db.session.add(new_post)
+      db.session.flush()
+
+      post_id = new_post.id
+      topic_ids = self._save_unique_topic(topic_list, lang_id)
+
+      if topic_ids and len(topic_ids) > 0:
+        post_topic_data = [PostTopic(post_id=post_id, topic_id=tp_id) for tp_id in topic_ids]
+        db.session.bulk_save_objects(post_topic_data)
+
       db.session.commit()
-      cache.delete_many(*['latest_posts_page_{}'.format(page) for page in range(1,21)])
+      cache_delete_all_posts()
+      
       status_code = 200
       return post_schema.dump(new_post), status_code
       # except:
@@ -413,13 +450,18 @@ class PostResource(Resource):
       db.session.flush()
 
       post_id = new_post.id
-      mj_option_list = ["良い", "やや良い", "普通", "やや悪い", "悪い"]
+      mj_option_list = request.json["mj_option_list"] #["良い", "やや良い", "普通", "やや悪い", "悪い"]
       new_mj_option = [MjOption(post_id=post_id, lang_id=lang_id, content=cont) for cont in mj_option_list]
-      logger_api("new_mj_option", new_mj_option)
       db.session.bulk_save_objects(new_mj_option)
+
+      
+      topic_ids = self._save_unique_topic(topic_list, lang_id)
+      if topic_ids and len(topic_ids) > 0:
+        post_topic_data = [PostTopic(post_id=post_id, topic_id=tp_id) for tp_id in topic_ids]
+        db.session.bulk_save_objects(post_topic_data)
       db.session.commit()
 
-      cache.delete_many(*['latest_posts_page_{}'.format(page) for page in range(1,21)])
+      cache_delete_all_posts()
 
       status_code = 200
       return post_schema.dump(new_post), status_code

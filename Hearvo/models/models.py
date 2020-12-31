@@ -38,6 +38,7 @@ class Post(db.Model):
   vote_mjs = db.relationship("VoteMj", backref="post")
   mj_options = db.relationship("MjOption", backref="post")
   comments = db.relationship("Comment", backref="post")
+  topics = db.relationship("PostTopic", backref="post")
 
   def __repr__(self):
       return '<Post %s>' % self.title
@@ -283,3 +284,53 @@ class VoteType(db.Model):
 
   def __repr__(self):
       return '<VoteType %s>' % self.content
+
+
+
+
+
+#########################################
+# Topic
+#########################################
+class Topic(db.Model):
+  __tablename__ = "topic"
+
+  id = db.Column(db.Integer, primary_key=True, nullable=False)
+  topic = db.Column(db.String(200), nullable=True)
+  num_of_contents = db.Column(db.Integer, default=0)
+
+  # Foreign Key
+  lang_id = db.Column(db.Integer, db.ForeignKey('lang.id'), nullable=False)
+
+#########################################
+# UserInfoTopic
+#########################################
+class UserInfoTopic(db.Model):
+  __tablename__ = "user_info_topic"
+
+  id = db.Column(db.Integer, primary_key=True, nullable=False)
+  created_at = db.Column(db.DateTime, default=datetime.now(timezone(timedelta(hours=0), 'UTC')).isoformat())
+  updated_at = db.Column(db.DateTime, default=datetime.now(timezone(timedelta(hours=0), 'UTC')).isoformat(), onupdate=datetime.now(timezone(timedelta(hours=0), 'UTC')).isoformat())
+
+  # Foreign Key
+  user_info_id = db.Column(db.Integer, db.ForeignKey('user_info.id'), nullable=False)
+  topic_id = db.Column(db.Integer, db.ForeignKey('topic.id'), nullable=False)
+
+
+#########################################
+# PostTopic
+#########################################
+class PostTopic(db.Model):
+  __tablename__ = "post_topic"
+
+  id = db.Column(db.Integer, primary_key=True, nullable=False)
+  created_at = db.Column(db.DateTime, default=datetime.now(timezone(timedelta(hours=0), 'UTC')).isoformat())
+  updated_at = db.Column(db.DateTime, default=datetime.now(timezone(timedelta(hours=0), 'UTC')).isoformat(), onupdate=datetime.now(timezone(timedelta(hours=0), 'UTC')).isoformat())
+
+  # Foreign Key
+  post_id = db.Column(db.Integer, db.ForeignKey('post.id'), nullable=False)
+  topic_id = db.Column(db.Integer, db.ForeignKey('topic.id'), nullable=False)
+
+  topic = db.relationship("Topic", backref="post_topic")
+
+

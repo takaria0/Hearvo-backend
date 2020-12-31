@@ -11,6 +11,7 @@ import Hearvo.config as config
 from ..app import logger, cache
 from ..models import db, VoteSelect, VoteSelectSchema, VoteSelectUser, Post, UserInfoPostVoted
 from .logger_api import logger_api
+from Hearvo.utils import cache_delete_latest_posts, cache_delete_all_posts
 
 #########################################
 # Schema
@@ -149,12 +150,7 @@ class VoteSelectUserResource(Resource):
       db.session.add(user_info_post_voted_obj)
       db.session.commit()
 
-      POPULAR_CACHE_LIST = []
-      for page in range(1,21):
-        for time in ["now", "today", "week", "month"]:
-          POPULAR_CACHE_LIST.append('popular_posts_page_{}_time_{}'.format(page, time))
-      cache.delete_many(*POPULAR_CACHE_LIST)
-      cache.delete_many(*['latest_posts_page_{}'.format(page) for page in range(1,21)])
+      cache_delete_all_posts()
 
       res_obj = {"message": "created"}
       status_code = 200
