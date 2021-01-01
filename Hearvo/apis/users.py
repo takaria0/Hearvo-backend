@@ -3,11 +3,15 @@ import os
 from flask import request, Response, abort, jsonify, Blueprint
 from flask_restful import Resource
 from flask_jwt_extended import jwt_required, get_jwt_identity
+import bcrypt
 
 import Hearvo.config as config
 from ..app import logger
 from ..models import db, User, UserGETSchema, UserInfo, UserInfoGETSchema
+from Hearvo.middlewares.detect_language import get_lang_id
+from .logger_api import logger_api
 
+DELETED_USER_NAME = "<削除済み>" 
 
 #########################################
 # Schema
@@ -55,30 +59,79 @@ class UserResource(Resource):
       return {}, status_code
 
 
+  @jwt_required
+  def delete(self):
+    user_info_id = get_jwt_identity()
+    confirm_password = request.headers['confirmPassword']
+    logger_api('confirm_password',confirm_password)
+
+    try:
+      user_info = UserInfo.query.filter_by(id=user_info_id).first()
+      logger_api('user_info',user_info)
+      logger_api('user_info.user_id',user_info.user_id)
+      user = User.query.filter_by(id=user_info.user_id).first()
+      hashed_password = user.hashed_password
+      logger_api('user.hashed_password',user.hashed_password)
+      if (bcrypt.checkpw(confirm_password.encode("utf-8"), hashed_password.encode("utf-8"))):
+        
+        # UPDATE EMAIL TO NULL, NAME TO <deleted>
+        user.email = None
+        user_info.name = DELETED_USER_NAME
+
+        db.session.add(user)
+        db.session.add(user_info)
+        db.session.commit()
+        
+        return {"message": "Successfully deleted the account"}, 200
+
+      else:
+        logger_api('password doesnt mathced', [])
+        return {"message": "Account deletion failed"}, 400
+
+    except:
+      import traceback
+      traceback.print_exc()
+      db.session.rollback()
+      
+      return {"message": "Account deletion failed"}, 400
     
-    # return user_info_schema.dump(user), 200
-
-  # @jwt_required
-  # def post(self):
-  #   # user_info_id = get_jwt_identity()
-  #   new_post = User(
-  #     user_id=request.json["user_id"],
-  #     title=request.json['title'],
-  #     content=request.json['content']
-  #   )
-  #   try:
-  #     db.session.add(new_post)
-  #     db.session.commit()
-  #     status_code = 200
-  #   except:
-  #     db.session.rollback()
-  #     status_code = 400
-  #   finally:
-  #     pass
-  #     # db.session.close()
-
-  #   return post_schema.dump(new_post)
 
 
+
+
+class UserPasswordResource(Resource):
+
+  @jwt_required
+  def put(self):
+    user_info_id = get_jwt_identity()
+    user_info_obj = UserInfo.query.get(user_info_id)
+
+    old_password = request.json["old_password"]
+    new_password = request.json["new_password"]
+
+    # validate old password
+    old_hashed_password = user_info_obj.hashed_password
+
+    # password matching
+    try:
+      if (bcrypt.checkpw(old_password.encode("utf-8"), old_hashed_password.encode("utf-8"))):
+        # matched
+        # create new hashed password from new_password
+        salt = bcrypt.gensalt(rounds=15, prefix=b'2a') # generate salt, 2^15 = 32768
+        new_hashed_password = bcrypt.hashpw(new_password.encode("utf-8"), salt).decode("utf-8") # hashed password
+
+        user_info_obj.hashed_password = new_hashed_password        
+        db.session.add(user_info_obj)
+        db.session.commit()
+        status_code = 200
+        return {"message": "Password has changed"}, status_code
+      else:
+        status_code = 400
+        return {}, status_code
+
+    except:
+      db.session.rollback()
+      status_code = 400
+      return {}, status_code
 
 
