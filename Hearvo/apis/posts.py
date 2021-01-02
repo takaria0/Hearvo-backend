@@ -319,7 +319,7 @@ class PostResource(Resource):
           elif time == "month":
             yesterday_datetime = (datetime.now(timezone(timedelta(hours=0), 'UTC')) - timedelta(days=30)).isoformat()
           else:
-            yesterday_datetime = (datetime.now(timezone(timedelta(hours=0), 'UTC')) - timedelta(hours=24)).isoformat()
+            yesterday_datetime = (datetime.now(timezone(timedelta(hours=0), 'UTC')) - timedelta(days=7)).isoformat()
           
           posts = Post.query.filter(Post.lang_id == lang_id, Post.created_at > yesterday_datetime).join(Post.vote_selects, isouter=True).join(Post.vote_mjs, isouter=True).join(Post.mj_options, isouter=True).order_by(Post.num_vote.desc()).distinct().paginate(page, per_page=config.POSTS_PER_PAGE).items
           
@@ -373,6 +373,16 @@ class PostResource(Resource):
       posts = Post.query.filter(Post.lang_id==lang_id, or_(Post.content.contains(search), Post.title.contains(search))).join(Post.vote_selects, isouter=True).join(Post.vote_mjs, isouter=True).join(Post.mj_options, isouter=True).order_by(Post.id.desc()).distinct().paginate(page, per_page=config.POSTS_PER_PAGE).items
       status_code = 200
       post_obj = posts_schema.dump(posts)
+      count_vote_obj = self._count_vote(post_obj, user_info_id)
+      return count_vote_obj, status_code
+
+    elif "topic" in request.args.keys() and "page" in request.args.keys():
+      topic = request.args["topic"]
+      page = int(request.args["page"])
+      target_topics = Post.query.join(PostTopic).join(Topic).filter_by(topic=topic).distinct().paginate(page, per_page=config.POSTS_PER_PAGE).items
+      # posts = Post.query.filter(Post.lang_id==lang_id, or_(Post.content.contains(search), Post.title.contains(search))).join(Post.vote_selects, isouter=True).join(Post.vote_mjs, isouter=True).join(Post.mj_options, isouter=True).order_by(Post.id.desc()).distinct().paginate(page, per_page=config.POSTS_PER_PAGE).items
+      status_code = 200
+      post_obj = posts_schema.dump(target_topics)
       count_vote_obj = self._count_vote(post_obj, user_info_id)
       return count_vote_obj, status_code
 
