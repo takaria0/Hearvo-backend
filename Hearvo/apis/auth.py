@@ -104,12 +104,17 @@ class LoginResource(Resource):
         lang_id=lang_id
       ).first()
 
+      user_info_obj.login_count = user_info_obj.login_count + 1
+      db.session.add(user_info_obj)
+      db.session.commit()
+      
       expires = datetime.timedelta(days=30)
       access_token = create_access_token(identity=str(user_info_obj.id), expires_delta=expires)
       # headers = {'Set-Cookie': access_token}
       return {"token": access_token}, 200 #, headers
 
     else:
+      db.session.rollback()
       return {"message": "ログインに失敗しました"}, 401
 
 

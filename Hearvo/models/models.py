@@ -91,6 +91,8 @@ class UserInfo(db.Model):
   gender = db.Column(db.String(100))
   age = db.Column(db.Integer)
   birthday = db.Column(db.DateTime)
+  birth_year = db.Column(db.Integer)
+  login_count = db.Column(db.Integer, default=0)
   created_at = db.Column(db.DateTime, default=datetime.now(timezone(timedelta(hours=0), 'UTC')).isoformat())
   updated_at = db.Column(db.DateTime, default=datetime.now(timezone(timedelta(hours=0), 'UTC')).isoformat(), onupdate=datetime.now(timezone(timedelta(hours=0), 'UTC')).isoformat())
 

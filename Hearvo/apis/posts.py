@@ -60,6 +60,10 @@ class PostResource(Resource):
       return True
 
   def _options_validate(self, options):
+    
+    def age_to_year(age):
+      current_year = datetime.now(timezone(timedelta(hours=0), 'UTC')).year
+      return current_year - age
 
     if "gender" in options.keys():
       gender = options["gender"] if self._string_check(options["gender"]) else None
@@ -67,14 +71,14 @@ class PostResource(Resource):
       gender = None
 
     if "min_age" in options.keys():
-      min_age = int(options["min_age"]) if self._string_check(options["min_age"]) else 0
+      max_birth_year = age_to_year(int(options["min_age"])) if self._string_check(options["min_age"]) else 0
     else:
-      min_age = 0
+      max_birth_year = 0
 
     if "max_age" in options.keys():
-      max_age = int(options["max_age"]) if self._string_check(options["max_age"]) else 130
+      min_birth_year = age_to_year(int(options["max_age"])) if self._string_check(options["max_age"]) else 3000
     else:
-      max_age = 130
+      min_birth_year = 3000
 
     if "occupation" in options.keys():
       occupation = options["occupation"] if self._string_check(options["occupation"]) else None
@@ -82,39 +86,41 @@ class PostResource(Resource):
       occupation = None
 
     
-    return {"gender": gender, "min_age": min_age, "max_age": max_age, "occupation": occupation}
+    return {"gender": gender, "min_birth_year": min_birth_year, "max_birth_year": max_birth_year, "occupation": occupation}
 
   def _filter_vote_selects_options(self, options, user_info_id, vote_select_ids):
     gender = options["gender"]
-    min_age = options["min_age"]
-    max_age = options["max_age"]
+    min_birth_year = options["min_birth_year"]
+    max_birth_year = options["max_birth_year"]
     occupation = options["occupation"]
 
+    logger_api(options, 'options')
+
     if gender == None:
-      vote_select_user_obj = VoteSelectUser.query.filter(VoteSelectUser.vote_select_id.in_(vote_select_ids)).join(UserInfo, UserInfo.id==VoteSelectUser.user_info_id).filter(UserInfo.occupation==occupation, UserInfo.age >= min_age, UserInfo.age <= max_age, ).all()
+      vote_select_user_obj = VoteSelectUser.query.filter(VoteSelectUser.vote_select_id.in_(vote_select_ids)).join(UserInfo, UserInfo.id==VoteSelectUser.user_info_id).filter(UserInfo.occupation==occupation, UserInfo.birth_year >= min_birth_year, UserInfo.birth_year <= max_birth_year, ).all()
 
     elif occupation == None:
-      vote_select_user_obj = VoteSelectUser.query.filter(VoteSelectUser.vote_select_id.in_(vote_select_ids)).join(UserInfo, UserInfo.id==VoteSelectUser.user_info_id).filter(UserInfo.gender==gender, UserInfo.age >= min_age, UserInfo.age <= max_age, ).all()
+      vote_select_user_obj = VoteSelectUser.query.filter(VoteSelectUser.vote_select_id.in_(vote_select_ids)).join(UserInfo, UserInfo.id==VoteSelectUser.user_info_id).filter(UserInfo.gender==gender, UserInfo.birth_year >= min_birth_year, UserInfo.birth_year <= max_birth_year, ).all()
 
     else:
-      vote_select_user_obj = VoteSelectUser.query.filter(VoteSelectUser.vote_select_id.in_(vote_select_ids)).join(UserInfo, UserInfo.id==VoteSelectUser.user_info_id).filter(UserInfo.occupation==occupation, UserInfo.gender==gender, UserInfo.age >= min_age, UserInfo.age <= max_age, ).all()
+      vote_select_user_obj = VoteSelectUser.query.filter(VoteSelectUser.vote_select_id.in_(vote_select_ids)).join(UserInfo, UserInfo.id==VoteSelectUser.user_info_id).filter(UserInfo.occupation==occupation, UserInfo.gender==gender, UserInfo.birth_year >= min_birth_year, UserInfo.birth_year <= max_birth_year, ).all()
 
     return vote_select_user_obj
 
   def _filter_vote_mjs_options(self, options, user_info_id, post_id):
     gender = options["gender"]
-    min_age = options["min_age"]
-    max_age = options["max_age"]
+    min_birth_year = options["min_birth_year"]
+    max_birth_year = options["max_birth_year"]
     occupation = options["occupation"]
-
+    
     if gender == None:
-      vote_mj_user_obj = VoteMjUser.query.filter_by(post_id=post_id).join(UserInfo, UserInfo.id==VoteMjUser.user_info_id).filter(UserInfo.occupation==occupation, UserInfo.age >= min_age, UserInfo.age <= max_age, ).all()
+      vote_mj_user_obj = VoteMjUser.query.filter_by(post_id=post_id).join(UserInfo, UserInfo.id==VoteMjUser.user_info_id).filter(UserInfo.occupation==occupation, UserInfo.age >= min_birth_year, UserInfo.birth_year <= max_birth_year, ).all()
 
     elif occupation == None:
-      vote_mj_user_obj = VoteMjUser.query.filter_by(post_id=post_id).join(UserInfo, UserInfo.id==VoteMjUser.user_info_id).filter(UserInfo.gender==gender, UserInfo.age >= min_age, UserInfo.age <= max_age, ).all()
+      vote_mj_user_obj = VoteMjUser.query.filter_by(post_id=post_id).join(UserInfo, UserInfo.id==VoteMjUser.user_info_id).filter(UserInfo.gender==gender, UserInfo.birth_year >= min_birth_year, UserInfo.birth_year <= max_birth_year, ).all()
 
     else:
-      vote_mj_user_obj = VoteMjUser.query.filter_by(post_id=post_id).join(UserInfo, UserInfo.id==VoteMjUser.user_info_id).filter(UserInfo.occupation==occupation, UserInfo.gender==gender, UserInfo.age >= min_age, UserInfo.age <= max_age, ).all()
+      vote_mj_user_obj = VoteMjUser.query.filter_by(post_id=post_id).join(UserInfo, UserInfo.id==VoteMjUser.user_info_id).filter(UserInfo.occupation==occupation, UserInfo.gender==gender, UserInfo.birth_year >= min_birth_year, UserInfo.birth_year <= max_birth_year, ).all()
 
     return vote_mj_user_obj
 
@@ -302,6 +308,7 @@ class PostResource(Resource):
         count_vote_obj = cache.get('popular_posts_page_{}_time_{}'.format(page, time))
         status_code = 200
         logger_api("popular cache hit or not", (count_vote_obj is not None))
+
         if count_vote_obj is None:
           if time == "today":
             yesterday_datetime = (datetime.now(timezone(timedelta(hours=0), 'UTC')) - timedelta(hours=24)).isoformat()
@@ -313,7 +320,6 @@ class PostResource(Resource):
             yesterday_datetime = (datetime.now(timezone(timedelta(hours=0), 'UTC')) - timedelta(days=30)).isoformat()
           else:
             yesterday_datetime = (datetime.now(timezone(timedelta(hours=0), 'UTC')) - timedelta(hours=24)).isoformat()
-
           
           posts = Post.query.filter(Post.lang_id == lang_id, Post.created_at > yesterday_datetime).join(Post.vote_selects, isouter=True).join(Post.vote_mjs, isouter=True).join(Post.mj_options, isouter=True).order_by(Post.num_vote.desc()).distinct().paginate(page, per_page=config.POSTS_PER_PAGE).items
           
@@ -424,13 +430,6 @@ class PostResource(Resource):
       
       status_code = 200
       return post_schema.dump(new_post), status_code
-      # except:
-      #   db.session.rollback()
-      #   status_code = 400
-      #   return {}, status_code
-      # finally:
-      #   pass
-        # db.session.close()
 
     elif vote_type_id == "2":
       # try:
@@ -465,14 +464,6 @@ class PostResource(Resource):
 
       status_code = 200
       return post_schema.dump(new_post), status_code
-      # except:
-        # db.session.rollback()
-        # status_code = 400
-        # return {}, status_code
-      # finally:
-        # pass
-        # db.session.close()
-
         
     else:
       return {}, 400
