@@ -29,13 +29,6 @@ services:
       - ./Hearvo:/app/Hearvo
       - ./migrations:/app/migrations
       - ./run.py:/app/run.py
-
-      #  - type: bind
-      #    source: ${PWD}/migrations
-      #    target: /app/migrations
-      #  - type: volume
-      #    source: .
-      #    target: /app
     
 
   postgres:
