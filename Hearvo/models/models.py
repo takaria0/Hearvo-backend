@@ -336,3 +336,43 @@ class PostTopic(db.Model):
   topic = db.relationship("Topic", backref="post_topic")
 
 
+#########################################
+# Group
+#########################################
+class Group(db.Model):
+  __tablename__ = "group"
+
+  id = db.Column(db.Integer, primary_key=True, nullable=False)
+  title = db.Column(db.String(200), nullable=False)
+  created_at = db.Column(db.DateTime, default=datetime.now(timezone(timedelta(hours=0), 'UTC')).isoformat())
+  updated_at = db.Column(db.DateTime, default=datetime.now(timezone(timedelta(hours=0), 'UTC')).isoformat(), onupdate=datetime.now(timezone(timedelta(hours=0), 'UTC')).isoformat())
+  user_info_id = db.Column(db.Integer, db.ForeignKey('user_info.id'), nullable=False)
+
+#########################################
+# PostGroup
+#########################################
+class PostGroup(db.Model):
+  __tablename__ = "post_group"
+
+  id = db.Column(db.Integer, primary_key=True, nullable=False)
+  created_at = db.Column(db.DateTime, default=datetime.now(timezone(timedelta(hours=0), 'UTC')).isoformat())
+  updated_at = db.Column(db.DateTime, default=datetime.now(timezone(timedelta(hours=0), 'UTC')).isoformat(), onupdate=datetime.now(timezone(timedelta(hours=0), 'UTC')).isoformat())
+
+  # Foreign Key
+  post_id = db.Column(db.Integer, db.ForeignKey('post.id'), nullable=False)
+  group_id = db.Column(db.Integer, db.ForeignKey('group.id'), nullable=False)
+
+  
+#########################################
+# UserInfoGroup
+#########################################
+class UserInfoGroup(db.Model):
+  __tablename__ = "user_info_group"
+
+  id = db.Column(db.Integer, primary_key=True, nullable=False)
+  created_at = db.Column(db.DateTime, default=datetime.now(timezone(timedelta(hours=0), 'UTC')).isoformat())
+  updated_at = db.Column(db.DateTime, default=datetime.now(timezone(timedelta(hours=0), 'UTC')).isoformat(), onupdate=datetime.now(timezone(timedelta(hours=0), 'UTC')).isoformat())
+
+  # Foreign Key
+  user_info_id = db.Column(db.Integer, db.ForeignKey('user_info.id'), nullable=False)
+  group_id = db.Column(db.Integer, db.ForeignKey('group.id'), nullable=False)
