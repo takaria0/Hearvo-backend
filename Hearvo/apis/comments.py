@@ -26,7 +26,7 @@ class CommentResource(Resource):
     try:
       verify_jwt_in_request_optional()
       user_info_id = get_jwt_identity()
-    except :
+    except:
       user_info_id = None
 
     if len(request.args) == 0:

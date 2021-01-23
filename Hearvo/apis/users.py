@@ -34,29 +34,58 @@ class UserResource(Resource):
     user_info_id = get_jwt_identity()
     user_info_obj = UserInfo.query.get(user_info_id)
 
-    description = request.json["description"]
-    gender = request.json["gender"]
-    age = request.json["age"]
-    occupation = request.json["occupation"]
+    if "login_count" in request.args.keys():
+      login_count = request.args["login_count"]
+      try:
+        user_info_obj.login_count = int(login_count)
+        db.session.add(user_info_obj)
+        db.session.commit()
+        return {}, 200
+      except:
+        db.session.rollback()
+        return {}, 400
 
-    def update_user(user_info_obj, description, gender, age, occupation):
+    elif "initial_setting" in request.args.keys():
+      gender = request.json["gender"]
+      birth_year = request.json["birth_year"]
+      occupation = request.json["occupation"]
+
+      # UPDATE USER
+      user_info_obj.gender = gender
+      user_info_obj.birth_year = birth_year
+      user_info_obj.occupation = occupation
+
+      try:
+        db.session.add(user_info_obj)
+        db.session.commit()
+        status_code = 200
+        return user_info_schema.dump(user_info_obj), status_code
+        
+      except:
+        db.session.rollback()
+        status_code = 400
+        return {}, status_code
+
+    else:
+      description = request.json["description"]
+      gender = request.json["gender"]
+      birth_year = request.json["birth_year"]
+      occupation = request.json["occupation"]
+
       user_info_obj.description = description
       user_info_obj.gender = gender
-      user_info_obj.age = age
+      user_info_obj.birth_year = birth_year
       user_info_obj.occupation = occupation
-      return user_info_obj
-
-    
-    try:
-      updated_user_info_obj = update_user(user_info_obj, description, gender, age, occupation)
-      db.session.add(updated_user_info_obj)
-      db.session.commit()
-      status_code = 200
-      return user_info_schema.dump(updated_user_info_obj), status_code
-    except:
-      db.session.rollback()
-      status_code = 400
-      return {}, status_code
+      
+      try:
+        db.session.add(user_info_obj)
+        db.session.commit()
+        status_code = 200
+        return user_info_schema.dump(user_info_obj), status_code
+      except:
+        db.session.rollback()
+        status_code = 400
+        return {}, status_code
 
 
   @jwt_required

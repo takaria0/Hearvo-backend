@@ -11,6 +11,7 @@ from .auth import SignupResource, LoginResource
 from .vote_selects import VoteSelectResource, VoteSelectUserResource, CountVoteSelectResource
 from .vote_mjs import VoteMjResource, VoteMjUserResource, CountVoteMjResource
 from .comments import CommentResource
+from .groups import GroupResource
 
 
 PRE = config.URL_PREFIX
@@ -37,5 +38,6 @@ api.add_resource(VoteMjUserResource, f'/{PRE}/vote_mj_users')
 api.add_resource(VoteSelectUserResource, f'/{PRE}/vote_select_users')
 api.add_resource(CountVoteSelectResource, f'/{PRE}/count_vote_selects')
 api.add_resource(CommentResource, f'/{PRE}/comments')
+api.add_resource(GroupResource, f'/{PRE}/groups')
 
 
