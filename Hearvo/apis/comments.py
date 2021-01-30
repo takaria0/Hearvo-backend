@@ -7,9 +7,29 @@ from datetime import datetime, timedelta, timezone
 
 import Hearvo.config as config
 from ..app import logger
-from ..models import db, Comment, CommentSchema, VoteSelect
+from ..models import db, Comment, CommentSchema, VoteSelect, CommentFav
 from .logger_api import logger_api
 # from ..config import JST
+
+def update_num_of_good_or_bad(current_comment, good_or_bad, setting):
+
+  # if fav already exists. need to balance the number
+  if setting == "swap":
+    if good_or_bad == 0:
+      current_comment.num_of_bad = current_comment.num_of_bad + 1
+      current_comment.num_of_good = current_comment.num_of_good - 1
+    else:
+      current_comment.num_of_bad = current_comment.num_of_bad - 1
+      current_comment.num_of_good = current_comment.num_of_good + 1
+    return current_comment
+
+  # if create, add 1. if delete, subtract by 1
+  num = 1 if setting == "addition" else -1
+  if good_or_bad == 0:
+    current_comment.num_of_bad = current_comment.num_of_bad + num
+  else:
+    current_comment.num_of_good = current_comment.num_of_good + num
+  return current_comment
 
 #########################################
 # Schema
@@ -23,6 +43,14 @@ comments_schema = CommentSchema(many=True)
 class CommentResource(Resource):
 
   def get(self):
+    """
+    get comments of post
+
+    post_id: id
+    order_by: "popular" "latest"
+    """
+    order_by = request.args["order_by"] if "order_by" in request.args.keys() else ""
+
     try:
       verify_jwt_in_request_optional()
       user_info_id = get_jwt_identity()
@@ -38,7 +66,15 @@ class CommentResource(Resource):
       logger_api("request.args", str(request.args))
       logger_api("request.args[post_id]", str(request.args["post_id"]))
       post_id = request.args["post_id"]
-      comments = Comment.query.filter_by(post_id=post_id).all()
+
+      # order by
+      if order_by == "popular":
+        comments = Comment.query.filter_by(post_id=post_id).order_by(Comment.num_of_good.desc()).all()
+      elif order_by == "latest":
+        comments = Comment.query.filter_by(post_id=post_id).order_by(Comment.created_at.desc()).all()
+      else:
+        comments = Comment.query.filter_by(post_id=post_id).order_by(Comment.created_at.desc()).all()
+
       status_code = 200
       return comments_schema.dump(comments), status_code
 
@@ -83,4 +119,84 @@ class CommentResource(Resource):
 
 
 
+class CommentFavResource(Resource):
+
+  @jwt_required
+  def post(self):
+    """
+    add fav to the comment
+
+    comment_id: id
+    good_or_bad: 1 is good, 0 is bad.
+    """
+    logger_api("request.json", str(request.json))
+    user_info_id = get_jwt_identity()
+    comment_id = request.json["comment_id"]
+    good_or_bad = int(request.json["good_or_bad"])
+
+    # Check if the comment exists
+    current_comment = Comment.query.filter_by(id=comment_id).first()
+    if current_comment is None:
+      return {"message": "The comment doesn't exists"}, 400
+
+
+    # Check if the user already favored
+    comment_fav = CommentFav.query.filter_by(user_info_id=user_info_id, comment_id=comment_id).first()
+    if comment_fav is None: # create new fav
+      new_comment_fav = CommentFav(user_info_id=user_info_id, comment_id=comment_id, good_or_bad=good_or_bad)
+      # update num of good or bad
+      current_comment = update_num_of_good_or_bad(current_comment, good_or_bad, "addition")
+
+    elif comment_fav.good_or_bad != good_or_bad: # else update the current fav
+      comment_fav.good_or_bad = good_or_bad
+      new_comment_fav = comment_fav
+      current_comment = update_num_of_good_or_bad(current_comment, good_or_bad, "swap")
+    
+    else:
+      return {"message": "Fav has't changed."}, 200
+
+
+    try:
+      db.session.add(new_comment_fav)
+      db.session.add(current_comment)
+      db.session.commit()
+      status_code = 200
+      return {"message": "Successfully created a fav."}, status_code
+    except:
+      db.session.rollback()
+      status_code = 400
+      return {"message": "Failed to create a fav."}, status_code
+
+
+  @jwt_required
+  def delete(self):
+    """
+    delete fav to the comment
+
+    comment_id: id
+    """
+    logger_api("request.json", str(request.json))
+    user_info_id = get_jwt_identity()
+    comment_id = request.json["comment_id"]
+
+    # Check if the fav exists
+    comment_fav = CommentFav.query.filter_by(user_info_id=user_info_id, comment_id=comment_id).first()
+    if comment_fav is None:
+      status_code = 400
+      return {"message": "The fav doesn't exist."}, status_code
+
+    current_comment = Comment.query.filter_by(id=comment_id).first()
+    current_comment = update_num_of_good_or_bad(current_comment, comment_fav.good_or_bad, "subtract")
+
+    # delete fav from the database
+    try:
+      CommentFav.query.filter_by(user_info_id=user_info_id, comment_id=comment_id).delete()
+      db.session.add(current_comment)
+      db.session.commit()
+      status_code = 200
+      return {"message": "Successfully deleted the fav."}, status_code
+    except:
+      db.session.rollback()
+      status_code = 400
+      return {"message": "Failed to delete the fav."}, status_code
 

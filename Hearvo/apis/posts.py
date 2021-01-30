@@ -413,7 +413,7 @@ class PostResource(Resource):
     elif "topic" in request.args.keys() and "page" in request.args.keys():
       topic = request.args["topic"]
       page = int(request.args["page"])
-      target_topics = Post.query.join(PostTopic).join(Topic).filter_by(group_id=group_id, topic=topic).distinct().paginate(page, per_page=config.POSTS_PER_PAGE).items
+      target_topics = Post.query.filter_by(group_id=group_id).join(PostTopic).join(Topic).filter_by(topic=topic).distinct().paginate(page, per_page=config.POSTS_PER_PAGE).items
       # posts = Post.query.filter(Post.lang_id==lang_id, or_(Post.content.contains(search), Post.title.contains(search))).join(Post.vote_selects, isouter=True).join(Post.vote_mjs, isouter=True).join(Post.mj_options, isouter=True).order_by(Post.id.desc()).distinct().paginate(page, per_page=config.POSTS_PER_PAGE).items
       status_code = 200
       post_obj = posts_schema.dump(target_topics)

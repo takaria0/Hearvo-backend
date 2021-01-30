@@ -252,7 +252,7 @@ class CommentFav(db.Model):
 
   # Foreign Key
   comment_id = db.Column(db.Integer, db.ForeignKey('comment.id'), nullable=False)
-  user_info_id = db.Column(db.Integer, db.ForeignKey('user_info_id.id'), nullable=False)
+  user_info_id = db.Column(db.Integer, db.ForeignKey('user_info.id'), nullable=False)
 
 
 #########################################
