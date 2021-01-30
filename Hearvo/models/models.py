@@ -32,6 +32,7 @@ class Post(db.Model):
   lang_id = db.Column(db.Integer, db.ForeignKey('lang.id'), nullable=False)
   vote_type_id = db.Column(db.Integer, db.ForeignKey('vote_type.id'), nullable=False)
   user_info_id = db.Column(db.Integer, db.ForeignKey('user_info.id'), nullable=False)
+  group_id = db.Column(db.Integer, db.ForeignKey('group.id'), nullable=False)
 
   # One to Many
   vote_selects = db.relationship("VoteSelect", backref="post")
@@ -226,6 +227,8 @@ class Comment(db.Model):
   parent_id = db.Column(db.Integer, nullable=True)
 
   content = db.Column(db.String(5000), nullable=True)
+  num_of_good = db.Column(db.Integer, primary_key=False, default=0)
+  num_of_bad = db.Column(db.Integer, primary_key=False, default=0)
 
   created_at = db.Column(db.DateTime, default=datetime.now(timezone(timedelta(hours=0), 'UTC')).isoformat())
   updated_at = db.Column(db.DateTime, default=datetime.now(timezone(timedelta(hours=0), 'UTC')).isoformat(), onupdate=datetime.now(timezone(timedelta(hours=0), 'UTC')).isoformat())
@@ -237,6 +240,19 @@ class Comment(db.Model):
 
   def __repr__(self):
       return '<Comment %s>' % self.content
+
+#########################################
+# CommentFav
+#########################################
+class CommentFav(db.Model):
+  __tablename__ = "comment_fav"
+
+  id = db.Column(db.Integer, primary_key=True, nullable=False)
+  good_or_bad = db.Column(db.Integer, primary_key=False, default=0) # 1 is good, 0 is bad
+
+  # Foreign Key
+  comment_id = db.Column(db.Integer, db.ForeignKey('comment.id'), nullable=False)
+  user_info_id = db.Column(db.Integer, db.ForeignKey('user_info_id.id'), nullable=False)
 
 
 #########################################
@@ -344,6 +360,9 @@ class Group(db.Model):
 
   id = db.Column(db.Integer, primary_key=True, nullable=False)
   title = db.Column(db.String(200), nullable=False)
+  link = db.Column(db.String(100), nullable=False)
+  num_of_users = db.Column(db.Integer, primary_key=False, default=0)
+  num_of_posts = db.Column(db.Integer, primary_key=False, default=0)
   created_at = db.Column(db.DateTime, default=datetime.now(timezone(timedelta(hours=0), 'UTC')).isoformat())
   updated_at = db.Column(db.DateTime, default=datetime.now(timezone(timedelta(hours=0), 'UTC')).isoformat(), onupdate=datetime.now(timezone(timedelta(hours=0), 'UTC')).isoformat())
   user_info_id = db.Column(db.Integer, db.ForeignKey('user_info.id'), nullable=False)

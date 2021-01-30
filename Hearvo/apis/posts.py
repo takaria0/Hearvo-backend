@@ -10,11 +10,28 @@ from sqlalchemy import or_
 
 import Hearvo.config as config
 from ..app import logger, cache
-from ..models import db, Post, PostSchema, VoteSelect, VoteSelectUser, UserInfoPostVoted, UserInfo, VoteMj, MjOption, VoteMjUser, Topic, PostTopic
+from ..models import db, Post, PostSchema, VoteSelect, VoteSelectUser, UserInfoPostVoted, UserInfo, VoteMj, MjOption, VoteMjUser, Topic, PostTopic, PostGroup, Group
 
 from .logger_api import logger_api
 from Hearvo.middlewares.detect_language import get_lang_id
 from Hearvo.utils import cache_delete_latest_posts, cache_delete_all_posts
+
+
+def update_num_of_posts(request, post_id):
+  """
+  if the post was posted in a group feed, update a relation between the post and the group
+  """
+  if request.json["group_id"]:
+    group_obj = Group.query.filter_by(id=request.json["group_id"]).first()
+    group_obj.num_of_posts = group_obj.num_of_posts + 1
+    db.session.add(group_obj)
+    return
+
+  else:
+    return
+
+def get_posts_from_db():
+  return
 
 #########################################
 # Schema
@@ -262,14 +279,29 @@ class PostResource(Resource):
 
 
   def get(self):
+    """
+    get posts based on the query parameters below
+
+    page: page of the feed
+    id: post id
+    keyword: query keyword e.g. "popular" "latest" "myposts" "voted"
+    do_filter: do filtering or not. yes or no
+    time: get post by the time, "now" "today" "week" "month"
+    group_id: id of the group posts belong to 
+    """
     logger_api("request.base_url", request.base_url)
-    
+
+    group_id = request.args["group_id"] if "group_id" in request.args.keys() else None
+    logger_api("group_id", group_id)
+    # maximum page length is currently 20, beyond that, no longer return the data
     if "page" in request.args.keys():
       page = int(request.args["page"])
       if page > 20:
         return {}, 200
 
     lang_id = get_lang_id(request.base_url)
+
+    # basically users can see the timeline without login
     try:
       verify_jwt_in_request_optional()
       user_info_id = get_jwt_identity()
@@ -277,6 +309,8 @@ class PostResource(Resource):
       user_info_id = None
 
     logger_api("user_info_id", user_info_id)
+
+    # get single post based on the post_id
     if "id" in request.args.keys():
       do_filter = request.args["do_filter"] if "do_filter" in request.args.keys() else "no"
 
@@ -321,7 +355,7 @@ class PostResource(Resource):
           else:
             yesterday_datetime = (datetime.now(timezone(timedelta(hours=0), 'UTC')) - timedelta(days=7)).isoformat()
           
-          posts = Post.query.filter(Post.lang_id == lang_id, Post.created_at > yesterday_datetime).join(Post.vote_selects, isouter=True).join(Post.vote_mjs, isouter=True).join(Post.mj_options, isouter=True).order_by(Post.num_vote.desc()).distinct().paginate(page, per_page=config.POSTS_PER_PAGE).items
+          posts = Post.query.filter(Post.lang_id == lang_id, Post.created_at > yesterday_datetime, Post.group_id==group_id).join(Post.vote_selects, isouter=True).join(Post.vote_mjs, isouter=True).join(Post.mj_options, isouter=True).order_by(Post.num_vote.desc()).distinct().paginate(page, per_page=config.POSTS_PER_PAGE).items
           
           post_obj = posts_schema.dump(posts)
           count_vote_obj = self._count_vote(post_obj, user_info_id)
@@ -333,7 +367,7 @@ class PostResource(Resource):
         status_code = 200
         logger_api("latest cache hit or not", (count_vote_obj is not None))
         if count_vote_obj is None:
-          posts = Post.query.filter_by(lang_id=lang_id).join(Post.vote_selects, isouter=True).join(Post.vote_mjs, isouter=True).join(Post.mj_options, isouter=True).order_by(Post.id.desc()).distinct().paginate(page, per_page=config.POSTS_PER_PAGE).items
+          posts = Post.query.filter_by(lang_id=lang_id, group_id=group_id).join(Post.vote_selects, isouter=True).join(Post.vote_mjs, isouter=True).join(Post.mj_options, isouter=True).order_by(Post.id.desc()).distinct().paginate(page, per_page=config.POSTS_PER_PAGE).items
           
           post_obj = posts_schema.dump(posts)
           count_vote_obj = self._count_vote(post_obj, user_info_id)
@@ -342,7 +376,7 @@ class PostResource(Resource):
         return count_vote_obj, status_code
 
       elif keyword == "myposts":
-        posts = Post.query.distinct().filter_by(lang_id=lang_id, user_info_id=user_info_id).join(Post.vote_selects, isouter=True).join(Post.vote_mjs, isouter=True).join(Post.mj_options, isouter=True).order_by(Post.id.desc()).paginate(page, per_page=config.POSTS_PER_PAGE).items
+        posts = Post.query.distinct().filter_by(lang_id=lang_id, group_id=group_id, user_info_id=user_info_id).join(Post.vote_selects, isouter=True).join(Post.vote_mjs, isouter=True).join(Post.mj_options, isouter=True).order_by(Post.id.desc()).paginate(page, per_page=config.POSTS_PER_PAGE).items
         status_code = 200
         post_obj = posts_schema.dump(posts)
         count_vote_obj = self._count_vote(post_obj, user_info_id)
@@ -352,7 +386,7 @@ class PostResource(Resource):
         voted_post_list = UserInfoPostVoted.query.filter_by(user_info_id=user_info_id).all()
         voted_post_id_list = [obj.post_id for obj in voted_post_list]
 
-        posts = Post.query.distinct().filter(Post.lang_id==lang_id, Post.id.in_(voted_post_id_list)).join(Post.vote_selects, isouter=True).join(Post.vote_mjs, isouter=True).join(Post.mj_options, isouter=True).order_by(Post.id.desc()).paginate(page, per_page=config.POSTS_PER_PAGE).items
+        posts = Post.query.distinct().filter(Post.lang_id==lang_id, Post.group_id==group_id, Post.id.in_(voted_post_id_list)).join(Post.vote_selects, isouter=True).join(Post.vote_mjs, isouter=True).join(Post.mj_options, isouter=True).order_by(Post.id.desc()).paginate(page, per_page=config.POSTS_PER_PAGE).items
         status_code = 200
         post_obj = posts_schema.dump(posts)
         count_vote_obj = self._count_vote(post_obj, user_info_id)
@@ -370,7 +404,7 @@ class PostResource(Resource):
           search = "#" + search
 
       page = int(request.args["page"])
-      posts = Post.query.filter(Post.lang_id==lang_id, or_(Post.content.contains(search), Post.title.contains(search))).join(Post.vote_selects, isouter=True).join(Post.vote_mjs, isouter=True).join(Post.mj_options, isouter=True).order_by(Post.id.desc()).distinct().paginate(page, per_page=config.POSTS_PER_PAGE).items
+      posts = Post.query.filter(Post.lang_id==lang_id, Post.group_id==group_id, or_(Post.content.contains(search), Post.title.contains(search))).join(Post.vote_selects, isouter=True).join(Post.vote_mjs, isouter=True).join(Post.mj_options, isouter=True).order_by(Post.id.desc()).distinct().paginate(page, per_page=config.POSTS_PER_PAGE).items
       status_code = 200
       post_obj = posts_schema.dump(posts)
       count_vote_obj = self._count_vote(post_obj, user_info_id)
@@ -379,7 +413,7 @@ class PostResource(Resource):
     elif "topic" in request.args.keys() and "page" in request.args.keys():
       topic = request.args["topic"]
       page = int(request.args["page"])
-      target_topics = Post.query.join(PostTopic).join(Topic).filter_by(topic=topic).distinct().paginate(page, per_page=config.POSTS_PER_PAGE).items
+      target_topics = Post.query.join(PostTopic).join(Topic).filter_by(group_id=group_id, topic=topic).distinct().paginate(page, per_page=config.POSTS_PER_PAGE).items
       # posts = Post.query.filter(Post.lang_id==lang_id, or_(Post.content.contains(search), Post.title.contains(search))).join(Post.vote_selects, isouter=True).join(Post.vote_mjs, isouter=True).join(Post.mj_options, isouter=True).order_by(Post.id.desc()).distinct().paginate(page, per_page=config.POSTS_PER_PAGE).items
       status_code = 200
       post_obj = posts_schema.dump(target_topics)
@@ -387,7 +421,7 @@ class PostResource(Resource):
       return count_vote_obj, status_code
 
     else:
-      posts = Post.query.filter_by(lang_id=lang_id).join(Post.vote_selects, isouter=True).join(Post.vote_mjs, isouter=True).join(Post.mj_options, isouter=True).order_by(Post.id.desc()).distinct().paginate(page, per_page=config.POSTS_PER_PAGE).items
+      posts = Post.query.filter_by(lang_id=lang_id, group_id=group_id).join(Post.vote_selects, isouter=True).join(Post.vote_mjs, isouter=True).join(Post.mj_options, isouter=True).order_by(Post.id.desc()).distinct().paginate(page, per_page=config.POSTS_PER_PAGE).items
       status_code = 200
       post_obj = posts_schema.dump(posts)
       count_vote_obj = self._count_vote(post_obj, user_info_id)
@@ -409,6 +443,7 @@ class PostResource(Resource):
     vote_obj = data["vote_obj"]
     vote_type_id = data["vote_type_id"]
     topic_list = data["topic"]
+    group_id = data["group_id"] if data["group_id"] else None
 
     if vote_type_id == "1":
       vote_obj_list = [VoteSelect(content=obj["content"]) for obj in vote_obj]
@@ -421,6 +456,7 @@ class PostResource(Resource):
         end_at=end_at,
         vote_selects=vote_obj_list,
         vote_type_id=1,
+        group_id=group_id,
         created_at=datetime.now(timezone(timedelta(hours=0), 'UTC')).isoformat()
       )
 
@@ -429,6 +465,10 @@ class PostResource(Resource):
       db.session.flush()
 
       post_id = new_post.id
+
+      # if this was posted in a group, update a relation between the post and the group
+      update_num_of_posts(request, post_id)
+
       topic_ids = self._save_unique_topic(topic_list, lang_id)
 
       if topic_ids and len(topic_ids) > 0:
@@ -452,6 +492,7 @@ class PostResource(Resource):
         content=content,
         end_at=end_at,
         vote_mjs=vote_obj_list,
+        group_id=group_id,
         vote_type_id=2,
       )
       
@@ -459,6 +500,10 @@ class PostResource(Resource):
       db.session.flush()
 
       post_id = new_post.id
+
+      # if this was posted in a group, update a relation between the post and the group
+      update_num_of_posts(request, post_id)
+
       mj_option_list = request.json["mj_option_list"] #["良い", "やや良い", "普通", "やや悪い", "悪い"]
       new_mj_option = [MjOption(post_id=post_id, lang_id=lang_id, content=cont) for cont in mj_option_list]
       db.session.bulk_save_objects(new_mj_option)
@@ -468,13 +513,13 @@ class PostResource(Resource):
       if topic_ids and len(topic_ids) > 0:
         post_topic_data = [PostTopic(post_id=post_id, topic_id=tp_id) for tp_id in topic_ids]
         db.session.bulk_save_objects(post_topic_data)
+
       db.session.commit()
-
       cache_delete_all_posts()
-
+      
       status_code = 200
       return post_schema.dump(new_post), status_code
-        
+
     else:
       return {}, 400
 
