@@ -9,19 +9,76 @@ from flask_jwt_extended import jwt_required, get_jwt_identity, jwt_optional, ver
 from sqlalchemy import or_
 
 import Hearvo.config as config
-from ..app import logger, cache
-from ..models import db, Post, PostSchema, VoteSelect, VoteSelectUser, UserInfoPostVoted, UserInfo, VoteMj, MjOption, VoteMjUser, Topic, PostTopic, PostGroup, Group
+from ..app import logger, cache, limiter
+from ..models import db, Post, PostSchema, VoteSelect, VoteSelectUser, UserInfoPostVoted, UserInfo, VoteMj, MjOption, VoteMjUser, Topic, PostTopic, PostGroup, Group, UserInfoPostVotedSchema
 
 from .logger_api import logger_api
 from Hearvo.middlewares.detect_language import get_lang_id
 from Hearvo.utils import cache_delete_latest_posts, cache_delete_all_posts
 
+user_info_post_voted_schema = UserInfoPostVotedSchema(many=True)
+
+def get_gender_distribution(post_id):
+  """
+  compute the number of male, female and others who posted the poll
+
+  post_id: id
+
+  {
+    male: 10, female: 30, others: 4
+  }
+  """
+  # male 0, female 1, others 2
+  base_data = UserInfo.query.join(UserInfoPostVoted, UserInfoPostVoted.user_info_id==UserInfo.id).filter_by(post_id=post_id).all()
+  gender_data = [x.gender for x in base_data] # [0,0,0,1,1,0,2,1,1,1]
+  logger_api("gender_data", gender_data)
+  male = gender_data.count("0")
+  female = gender_data.count("1")
+  others = gender_data.count("2")
+  return {"male": male, "female": female, "others": others}
+
+
+def get_age_distribution(post_id):
+  """
+  get age distribution of the post
+
+  {
+    "0_10": 3,
+    "10_20": 4,
+    "20_30": 10,
+    ...
+    "110_120": 0
+  }
+  """
+
+  ## WORKING ON IT
+  return
+
+
+def get_my_vote(post_id, user_info_id):
+  """
+  return user's vote for the post
+  currently only available for vote select (unavailable for vote mj)
+
+  TODO: add vote mjs
+
+  {
+    "vote_select_id": 4
+  }
+  """
+
+  result = VoteSelectUser.query.filter_by(user_info_id=user_info_id, post_id=post_id).first()
+  if result is None:
+    myvote = {"vote_mj_id": []}
+  else:
+    myvote = {"vote_select_id": result.vote_select_id}
+  return myvote
 
 def update_num_of_posts(request, post_id):
   """
   if the post was posted in a group feed, update a relation between the post and the group
   """
-  if request.json["group_id"]:
+  if ("group_id" in request.json.keys()) and (request.json["group_id"]):
     group_obj = Group.query.filter_by(id=request.json["group_id"]).first()
     group_obj.num_of_posts = group_obj.num_of_posts + 1
     db.session.add(group_obj)
@@ -47,23 +104,35 @@ class PostResource(Resource):
   def _save_unique_topic(self, topic_list, lang_id):
     """
     check Topic Table and insert new topics to DB
+    update num of posts of existential topics
+    insert new topics
     return topic ids
     """
     topic_ids = []
     fetched_data = Topic.query.filter(Topic.topic.in_(topic_list)).all()
+
+    # update topic num of posts
+    for topic in fetched_data:
+      topic.num_of_posts = topic.num_of_posts + 1
+
+    # update num of posts
+    db.session.bulk_save_objects(fetched_data)
+
+    # rubbish code to distinguish new and existed topics
     topic_in_db = [data.topic for data in fetched_data]
-    
     save_data = []
     for topic in topic_list:
       if topic in topic_in_db:
         pass
       else:
-        save_data.append(Topic(topic=topic, lang_id=lang_id))
+        save_data.append(Topic(topic=topic, lang_id=lang_id, num_of_posts=1))
 
+    # save new topics
     for data in save_data:
       db.session.add(data)
     db.session.flush()
 
+    # return all of topic ids
     existed_ids = [data.id for data in fetched_data]
     created_ids = [data.id for data in save_data]
 
@@ -177,6 +246,8 @@ class PostResource(Resource):
         posts[idx]["already_voted"] = already_voted
         posts[idx]["total_vote"] = total_vote
         posts[idx]["vote_period_end"] = vote_period_end
+        posts[idx]["my_vote"] = get_my_vote(post_id, user_info_id)
+        
       
       elif vote_type_id == 2:
         raw_mj_options = MjOption.query.filter_by(post_id=post_id).all()
@@ -204,6 +275,7 @@ class PostResource(Resource):
         posts[idx]["already_voted"] = already_voted
         posts[idx]["total_vote"] = total_vote
         posts[idx]["vote_period_end"] = vote_period_end
+        posts[idx]["my_vote"] = get_my_vote(post_id, user_info_id)
 
     return posts
 
@@ -246,6 +318,7 @@ class PostResource(Resource):
         posts[idx]["already_voted"] = already_voted
         posts[idx]["total_vote"] = total_vote
         posts[idx]["vote_period_end"] = vote_period_end
+        posts[idx]["my_vote"] = get_my_vote(post_id, user_info_id)
 
       elif vote_type_id == 2:
         raw_mj_options = MjOption.query.filter_by(post_id=post_id).all()
@@ -273,11 +346,12 @@ class PostResource(Resource):
         posts[idx]["already_voted"] = already_voted
         posts[idx]["total_vote"] = total_vote
         posts[idx]["vote_period_end"] = vote_period_end
+        posts[idx]["my_vote"] = get_my_vote(post_id, user_info_id)
 
     return posts
 
 
-
+  @limiter.limit(config.DEFAULT_LIMIT)
   def get(self):
     """
     get posts based on the query parameters below
@@ -322,6 +396,8 @@ class PostResource(Resource):
         status_code = 200
         post_obj = post_schema.dump(post)
         count_vote_obj = self._count_vote_option(post_obj, user_info_id, options)[0]
+        count_vote_obj["gender_distribution"] = get_gender_distribution(id)
+        count_vote_obj["my_vote"] = get_my_vote(id, user_info_id)
         return count_vote_obj, status_code
       else:
         id = request.args["id"]
@@ -329,6 +405,8 @@ class PostResource(Resource):
         status_code = 200
         post_obj = post_schema.dump(post)
         count_vote_obj = self._count_vote(post_obj, user_info_id)[0]
+        count_vote_obj["gender_distribution"] = get_gender_distribution(id)
+        count_vote_obj["my_vote"] = get_my_vote(id, user_info_id)
         return count_vote_obj, status_code
 
 
@@ -430,7 +508,19 @@ class PostResource(Resource):
 
 
   @jwt_required
+  @limiter.limit(config.DEFAULT_LIMIT)
   def post(self):
+    """
+    create a new post
+
+    title
+    content
+    end_at
+    vote_obj
+    vote_type_id
+    topic
+    group_id
+    """
     logger_api("request.json", str(request.json))
     data = request.get_json(force=True)
     logger_api("data", str(data))
@@ -443,7 +533,7 @@ class PostResource(Resource):
     vote_obj = data["vote_obj"]
     vote_type_id = data["vote_type_id"]
     topic_list = data["topic"]
-    group_id = data["group_id"] if data["group_id"] else None
+    group_id = data["group_id"] if ("group_id" in data.keys() and data["group_id"]) else None
 
     if vote_type_id == "1":
       vote_obj_list = [VoteSelect(content=obj["content"]) for obj in vote_obj]

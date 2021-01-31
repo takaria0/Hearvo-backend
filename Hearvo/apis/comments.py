@@ -12,7 +12,9 @@ from .logger_api import logger_api
 # from ..config import JST
 
 def update_num_of_good_or_bad(current_comment, good_or_bad, setting):
-
+  """
+  update number of good and bad of comment
+  """
   # if fav already exists. need to balance the number
   if setting == "swap":
     if good_or_bad == 0:

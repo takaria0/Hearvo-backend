@@ -12,6 +12,10 @@ from Hearvo.middlewares.detect_language import get_lang_id
 from .logger_api import logger_api
 
 DELETED_USER_NAME = "<削除済み>" 
+DELETED_USER_NAME_MAP = {
+  1: "<削除済み>",
+  2: "<Deleted>"
+}
 
 #########################################
 # Schema
@@ -91,6 +95,7 @@ class UserResource(Resource):
   @jwt_required
   def delete(self):
     user_info_id = get_jwt_identity()
+    lang_id = get_lang_id(request.base_url)
     confirm_password = request.headers['confirmPassword']
     logger_api('confirm_password',confirm_password)
 
@@ -104,8 +109,9 @@ class UserResource(Resource):
       if (bcrypt.checkpw(confirm_password.encode("utf-8"), hashed_password.encode("utf-8"))):
         
         # UPDATE EMAIL TO NULL, NAME TO <deleted>
+        user.deleted_email = user.email
         user.email = None
-        user_info.name = DELETED_USER_NAME
+        user_info.name = DELETED_USER_NAME_MAP[lang_id]
 
         db.session.add(user)
         db.session.add(user_info)
