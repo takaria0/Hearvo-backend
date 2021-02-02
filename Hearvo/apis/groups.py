@@ -23,6 +23,7 @@ def create_link(user_info_id, group_name, created_at):
 # Schema
 #########################################
 # group_schema = UserInfoGETSchema()
+group_info_schema = GroupSchema()
 groups_info_schema = GroupSchema(many=True)
 
 #########################################
@@ -35,6 +36,27 @@ class GroupResource(Resource):
     get groups that the user has joined
     """
     user_info_id = get_jwt_identity()
+    link = request.args["link"] if "link" in request.args.keys() else None
+    id = request.args["id"] if "id" in request.args.keys() else None
+    if id:
+      try:
+        data = Group.query.filter_by(id=id).first()
+        already_joined = UserInfoGroup.query.filter_by(user_info_id=user_info_id, group_id=data.id).first()
+        result = group_info_schema.dump(data)
+        result["already_joined"] = True if already_joined else False
+        return result, 200
+      except:
+        return {}, 400
+
+    if link:
+      try:
+        data = Group.query.filter_by(link=link).first()
+        already_joined = UserInfoGroup.query.filter_by(user_info_id=user_info_id, group_id=data.id).first()
+        result = group_info_schema.dump(data)
+        result["already_joined"] = True if already_joined else False
+        return result, 200
+      except:
+        return {}, 400
 
     try:
         data = UserInfoGroup.query.filter_by(user_info_id=user_info_id).all()
@@ -95,31 +117,33 @@ class GroupUserInfoResource(Resource):
     """
     link = request.json["link"]
     user_info_id = get_jwt_identity()
-    current_datetime=datetime.now(timezone(timedelta(hours=0), 'UTC')).isoformat()
 
     # Check if the group exists
     group_obj = Group.query.filter_by(link=link).first()
+
     if group_obj is None:
       status_code = 400
       return {"message": "Failed to add a user."}, status_code
 
     # Check if the user has already joined the group
-    is_duplicated = UserInfoGroup.query.filter_by(user_info_id=user_info_id).first()
+    is_duplicated = UserInfoGroup.query.filter_by(user_info_id=user_info_id, group_id=group_obj.id).first()
     if is_duplicated:
       status_code = 400
       return {"message": "This user already exists."}, status_code
 
     try:
-        group_id = group_obj.id
-        user_info_group = UserInfoGroup(user_info_id=user_info_id, group_id=group_id)
-        db.session.add(user_info_group)
-        db.session.commit()
-        status_code = 200
-        return {"message": "Successfully add a user to the group."}, status_code
+      group_id = group_obj.id
+      user_info_group = UserInfoGroup(user_info_id=user_info_id, group_id=group_id)
+      group_obj.num_of_users = group_obj.num_of_users + 1
+      db.session.add(user_info_group)
+      db.session.add(group_obj)
+      db.session.commit()
+      status_code = 200
+      return {"message": "Successfully add a user to the group."}, status_code
     except:
-        status_code = 400
-        db.session.rollback()
-        return {"message": "Failed to add a user."}, status_code
+      status_code = 400
+      db.session.rollback()
+      return {"message": "Failed to add a user."}, status_code
 
   @jwt_required
   def delete(self):

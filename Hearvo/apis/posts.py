@@ -10,7 +10,7 @@ from sqlalchemy import or_
 
 import Hearvo.config as config
 from ..app import logger, cache, limiter
-from ..models import db, Post, PostSchema, VoteSelect, VoteSelectUser, UserInfoPostVoted, UserInfo, VoteMj, MjOption, VoteMjUser, Topic, PostTopic, PostGroup, Group, UserInfoPostVotedSchema
+from ..models import db, Post, PostSchema, VoteSelect, VoteSelectUser, UserInfoPostVoted, UserInfo, VoteMj, MjOption, VoteMjUser, Topic, PostTopic, PostGroup, Group, UserInfoPostVotedSchema, UserInfoGroup
 
 from .logger_api import logger_api
 from Hearvo.middlewares.detect_language import get_lang_id
@@ -365,8 +365,6 @@ class PostResource(Resource):
     """
     logger_api("request.base_url", request.base_url)
 
-    group_id = request.args["group_id"] if "group_id" in request.args.keys() else None
-    logger_api("group_id", group_id)
     # maximum page length is currently 20, beyond that, no longer return the data
     if "page" in request.args.keys():
       page = int(request.args["page"])
@@ -381,6 +379,16 @@ class PostResource(Resource):
       user_info_id = get_jwt_identity()
     except :
       user_info_id = None
+
+    # if user has not joined this group. group id is None. namely users can't see group's contents without joining.
+    group_id = request.args["group_id"] if "group_id" in request.args.keys() else None
+    if user_info_id is None:
+      group_id = None
+
+    if group_id and user_info_id:
+      has_joined = UserInfoGroup.query.filter_by(user_info_id=user_info_id, group_id=group_id).first()
+      if has_joined is None:
+        group_id = None
 
     logger_api("user_info_id", user_info_id)
 
