@@ -4,6 +4,7 @@ from flask import request, Response, abort, jsonify, Blueprint
 from flask_restful import Resource
 from flask_jwt_extended import jwt_required, get_jwt_identity, jwt_optional, verify_jwt_in_request_optional
 from datetime import datetime, timedelta, timezone
+from sqlalchemy import and_
 
 import Hearvo.config as config
 from ..app import logger
@@ -71,11 +72,11 @@ class CommentResource(Resource):
 
       # order by
       if order_by == "popular":
-        comments = Comment.query.filter_by(post_id=post_id).order_by(Comment.num_of_good.desc()).all()
+        comments = Comment.query.filter_by(post_id=post_id).join(CommentFav, and_(Comment.id == CommentFav.comment_id,  CommentFav.user_info_id == user_info_id), isouter=True).order_by(Comment.num_of_good.desc()).all()
       elif order_by == "latest":
-        comments = Comment.query.filter_by(post_id=post_id).order_by(Comment.created_at.desc()).all()
+        comments = Comment.query.filter_by(post_id=post_id).join(CommentFav, and_(Comment.id == CommentFav.comment_id, CommentFav.user_info_id == user_info_id), isouter=True).order_by(Comment.created_at.desc()).all()
       else:
-        comments = Comment.query.filter_by(post_id=post_id).order_by(Comment.created_at.desc()).all()
+        comments = Comment.query.filter_by(post_id=post_id).join(CommentFav, and_(Comment.id == CommentFav.comment_id, CommentFav.user_info_id == user_info_id), isouter=True).order_by(Comment.created_at.desc()).all()
 
       status_code = 200
       return comments_schema.dump(comments), status_code
@@ -144,15 +145,27 @@ class CommentFavResource(Resource):
 
     # Check if the user already favored
     comment_fav = CommentFav.query.filter_by(user_info_id=user_info_id, comment_id=comment_id).first()
-    if comment_fav is None: # create new fav
+
+    # New Fav
+    if comment_fav is None:
       new_comment_fav = CommentFav(user_info_id=user_info_id, comment_id=comment_id, good_or_bad=good_or_bad)
       # update num of good or bad
-      current_comment = update_num_of_good_or_bad(current_comment, good_or_bad, "addition")
+      # current_comment = update_num_of_good_or_bad(current_comment, good_or_bad, "addition")
+      if good_or_bad == 1:
+        current_comment.num_of_good = current_comment.num_of_good + 1
+      else:
+        current_comment.num_of_bad = current_comment.num_of_bad + 1
 
+    # Swap Fav
     elif comment_fav.good_or_bad != good_or_bad: # else update the current fav
       comment_fav.good_or_bad = good_or_bad
       new_comment_fav = comment_fav
-      current_comment = update_num_of_good_or_bad(current_comment, good_or_bad, "swap")
+      if good_or_bad == 1:
+        current_comment.num_of_good = current_comment.num_of_good + 1
+        current_comment.num_of_bad = current_comment.num_of_bad - 1
+      else:
+        current_comment.num_of_good = current_comment.num_of_good - 1
+        current_comment.num_of_bad = current_comment.num_of_bad + 1
     
     else:
       return {"message": "Fav has't changed."}, 200
@@ -188,7 +201,12 @@ class CommentFavResource(Resource):
       return {"message": "The fav doesn't exist."}, status_code
 
     current_comment = Comment.query.filter_by(id=comment_id).first()
-    current_comment = update_num_of_good_or_bad(current_comment, comment_fav.good_or_bad, "subtract")
+    # current_comment = update_num_of_good_or_bad(current_comment, comment_fav.good_or_bad, "subtract")
+    if comment_fav.good_or_bad == 1:
+      current_comment.num_of_good = current_comment.num_of_good - 1
+    else:
+      current_comment.num_of_bad = current_comment.num_of_bad - 1
+
 
     # delete fav from the database
     try:

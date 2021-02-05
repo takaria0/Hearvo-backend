@@ -239,6 +239,8 @@ class Comment(db.Model):
   user_info_id = db.Column(db.BigInteger, db.ForeignKey('user_info.id'), nullable=False)
   post_id = db.Column(db.BigInteger, db.ForeignKey('post.id'), nullable=False)
 
+  # one to many
+  comment_favs = db.relationship("CommentFav", backref="comment")
 
   def __repr__(self):
       return '<Comment %s>' % self.content
@@ -255,6 +257,7 @@ class CommentFav(db.Model):
   # Foreign Key
   comment_id = db.Column(db.BigInteger, db.ForeignKey('comment.id'), nullable=False)
   user_info_id = db.Column(db.BigInteger, db.ForeignKey('user_info.id'), nullable=False)
+
 
 
 #########################################

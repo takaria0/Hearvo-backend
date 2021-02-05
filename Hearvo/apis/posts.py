@@ -69,9 +69,9 @@ def get_my_vote(post_id, user_info_id):
 
   result = VoteSelectUser.query.filter_by(user_info_id=user_info_id, post_id=post_id).first()
   if result is None:
-    myvote = {"vote_mj_id": []}
+    myvote = { "vote_select_id": None, "vote_mj_id": []}
   else:
-    myvote = {"vote_select_id": result.vote_select_id}
+    myvote = {"vote_select_id": result.vote_select_id, "vote_mj_id": []}
   return myvote
 
 def update_num_of_posts(request, post_id):

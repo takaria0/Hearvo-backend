@@ -38,6 +38,9 @@ class GroupResource(Resource):
     user_info_id = get_jwt_identity()
     link = request.args["link"] if "link" in request.args.keys() else None
     id = request.args["id"] if "id" in request.args.keys() else None
+    order_by = request.args["order_by"] if "order_by" in request.args.keys() else None
+
+    # one group
     if id:
       try:
         data = Group.query.filter_by(id=id).first()
@@ -48,6 +51,7 @@ class GroupResource(Resource):
       except:
         return {}, 400
 
+    # one group
     if link:
       try:
         data = Group.query.filter_by(link=link).first()
@@ -58,10 +62,11 @@ class GroupResource(Resource):
       except:
         return {}, 400
 
+    # multiple groups
     try:
         data = UserInfoGroup.query.filter_by(user_info_id=user_info_id).all()
         all_group_id = [x.group_id for x in data]
-        fetched_groups = Group.query.filter(Group.id.in_(all_group_id)).all()
+        fetched_groups = Group.query.filter(Group.id.in_(all_group_id)).order_by(Group.created_at.desc()).all()
         status_code = 200
         return groups_info_schema.dump(fetched_groups), status_code
     except:
@@ -78,6 +83,11 @@ class GroupResource(Resource):
     title = request.json["title"]
     user_info_id = get_jwt_identity()
     current_datetime=datetime.now(timezone(timedelta(hours=0), 'UTC')).isoformat()
+
+    # max group number is 50
+    all_groups = UserInfoGroup.query.filter_by(user_info_id=user_info_id).all()
+    if len(all_groups) > 49:
+      return {"message": "Group max number exceeded."}, 400
 
     try:
         link = create_link(user_info_id, title, current_datetime)
@@ -130,6 +140,11 @@ class GroupUserInfoResource(Resource):
     if is_duplicated:
       status_code = 400
       return {"message": "This user already exists."}, status_code
+
+    # max group number is 50
+    all_groups = UserInfoGroup.query.filter_by(user_info_id=user_info_id).all()
+    if len(all_groups) > 49:
+      return {"message": "Group max number exceeded."}, 400
 
     try:
       group_id = group_obj.id

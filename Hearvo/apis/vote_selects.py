@@ -115,6 +115,7 @@ class VoteSelectUserResource(Resource):
   @jwt_required
   def post(self):
     logger_api("request.json", request.json)
+    cache_delete_all_posts()
     user_info_id = get_jwt_identity()
     logger_api("user_info_id", user_info_id)
     vote_select_id = request.json["vote_select_id"]
@@ -150,7 +151,7 @@ class VoteSelectUserResource(Resource):
       db.session.add(user_info_post_voted_obj)
       db.session.commit()
 
-      cache_delete_all_posts()
+      
 
       res_obj = {"message": "created"}
       status_code = 200
