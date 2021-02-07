@@ -19,6 +19,7 @@ class Post(db.Model):
   __tablename__ = "post"
 
   id = db.Column(db.BigInteger, primary_key=True, nullable=False)
+  parent_id = db.Column(db.BigInteger, primary_key=False, nullable=True, default=None)
   title = db.Column(db.String(200), nullable=False)
   content = db.Column(db.String(5000), nullable=True)
   num_comment = db.Column(db.BigInteger, default=0)

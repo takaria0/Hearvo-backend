@@ -52,12 +52,12 @@ class UserResource(Resource):
     elif "initial_setting" in request.args.keys():
       gender = request.json["gender"]
       birth_year = request.json["birth_year"]
-      occupation = request.json["occupation"]
+      # occupation = request.json["occupation"]
 
       # UPDATE USER
       user_info_obj.gender = gender
       user_info_obj.birth_year = birth_year
-      user_info_obj.occupation = occupation
+      # user_info_obj.occupation = occupation
 
       try:
         db.session.add(user_info_obj)
