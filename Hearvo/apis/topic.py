@@ -35,6 +35,19 @@ class TopicResource(Resource):
     user_info_id = get_jwt_identity()
     lang_id = get_lang_id(request.base_url)
 
+
+    """
+    for side bar topic rankings
+    do not include group's topic
+    """
+    if "sidebar" in request.args.keys():
+      try:
+        topics = Topic.query.order_by(Topic.num_of_posts.desc()).limit(10).all()
+        result = topics_schema.dump(topics)
+        return result, 200
+      except:
+        return [], 400
+
     """
     return initial topics. save topics beforehand
     """
