@@ -19,8 +19,10 @@ RUN pip install -r requirements.dev.txt
 
 COPY . /app
 COPY wait-for-it.sh /wait-for-it.sh
+COPY entrypoint.local.sh /entrypoint.local.sh
+
 RUN chmod +x ./wait-for-it.sh
-RUN chmod +x ./entrypoint.sh
+RUN chmod +x ./entrypoint.local.sh
 
 
 # add the 'postgres' admin role
@@ -35,4 +37,4 @@ VOLUME ["/etc/postgresql", "/var/log/postgresql", "/var/lib/postgresql"]
 VOLUME ["/app"]
 
 # ENTRYPOINT [ "/bin/bash", "-c" ]
-CMD ["./wait-for-it.sh", "db_postgres:5432", "--", "./entrypoint.sh"]
+CMD ["./wait-for-it.sh", "db_postgres:5432", "--", "./entrypoint.local.sh"]

@@ -148,10 +148,10 @@ class UserInfoTopicResource(Resource):
       # update topic num of users
       for topic_obj in topic_obj_list:
         # check if the user already followed the topic
-        check_already = UserInfoTopic.query.filter_by(id=topic_obj).first()
+        check_already = UserInfoTopic.query.filter_by(user_info_id=user_info_id, topic_id=topic_obj.id).first()
         if check_already is None:
           topic_obj.num_of_users = topic_obj.num_of_users + 1
-          new_topic_user_info_list.append(UserInfoTopic(user_info_id=user_info_id,topic_id=topic_id))
+          new_topic_user_info_list.append(UserInfoTopic(user_info_id=user_info_id,topic_id=topic_obj.id))
 
       # bulk insert
       db.session.bulk_save_objects(topic_obj_list)

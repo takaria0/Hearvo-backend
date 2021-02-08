@@ -10,6 +10,7 @@ echo flask db upgrade
 flask db upgrade
 
 # echo init database
+# docker exec -it XXX bash
 # python3 db_init_for_heroku.py
 
 echo python3 run.py

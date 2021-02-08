@@ -14,8 +14,9 @@ db.session.add(lang_2)
 
 vote_1 = VoteType(vote_type="vote_select")
 vote_2 = VoteType(vote_type="vote_mj") 
-vote_2 = VoteType(vote_type="multiple_vote") 
+vote_3 = VoteType(vote_type="multiple_vote") 
 
 db.session.add(vote_1)
 db.session.add(vote_2)
+db.session.add(vote_3)
 db.session.commit()

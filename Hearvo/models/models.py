@@ -33,7 +33,7 @@ class Post(db.Model):
   lang_id = db.Column(db.BigInteger, db.ForeignKey('lang.id'), nullable=False)
   vote_type_id = db.Column(db.BigInteger, db.ForeignKey('vote_type.id'), nullable=False)
   user_info_id = db.Column(db.BigInteger, db.ForeignKey('user_info.id'), nullable=False)
-  group_id = db.Column(db.BigInteger, db.ForeignKey('group.id'), nullable=False)
+  group_id = db.Column(db.BigInteger, db.ForeignKey('group.id'), nullable=True)
 
   # One to Many
   vote_selects = db.relationship("VoteSelect", backref="post")
