@@ -480,7 +480,7 @@ class PostResource(Resource):
     group_id: id of the group posts belong to 
     """
     logger_api("request.base_url", request.base_url)
-
+    cache_delete_all_posts()
     """ 
     maximum page length is currently 20, beyond that, no longer return the data 
     """
