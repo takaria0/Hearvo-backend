@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
  
-echo flask db init
-flask db init
+# echo flask db init
+# flask db init
 
 echo flask db migrate
 flask db migrate
