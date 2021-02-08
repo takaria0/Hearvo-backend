@@ -4,8 +4,9 @@ git commit -m "deploy"
 git push heroku production:main
 
 
-# heroku run flask db migrate
+
 # heroku run flask db upgrade
+# heroku run flask db migrate
 
 # heroku run python
 # from Hearvo.models import Lang, db, VoteType
