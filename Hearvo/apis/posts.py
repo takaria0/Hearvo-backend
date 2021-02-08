@@ -692,7 +692,7 @@ class PostResource(Resource):
     topic
     group_id
     """
-    logger_api("POST posts route", '')
+    logger_api("POST_posts_route", '')
     logger_api("request.json", str(request.json))
     data = request.get_json(force=True)
     logger_api("data", str(data))
