@@ -41,6 +41,10 @@ def handle_vote_type_3(data, lang_id, user_info_id, group_id):
     ]
   }
   """
+
+  if not data["title"]:
+    raise ValueError("no title")
+
   end_at = data["end_at"]
   parent_data = Post(
         parent_id=None,
@@ -105,9 +109,9 @@ def get_gender_distribution(post_id):
   base_data = UserInfo.query.join(UserInfoPostVoted, UserInfoPostVoted.user_info_id==UserInfo.id).filter_by(post_id=post_id).all()
   gender_data = [x.gender for x in base_data] # [0,0,0,1,1,0,2,1,1,1]
   logger_api("gender_data", gender_data)
-  male = gender_data.count("0")
-  female = gender_data.count("1")
-  others = gender_data.count("2")
+  male = gender_data.count(0)
+  female = gender_data.count(1)
+  others = gender_data.count(2)
   return {"male": male, "female": female, "others": others}
 
 
@@ -295,10 +299,12 @@ def count_vote(posts, user_info_id):
       end_datetime = datetime.fromisoformat(post["end_at"])
       end_datetime = end_datetime.replace(tzinfo=timezone(timedelta(hours=0), 'UTC'))
       vote_period_end = True if current_datetime > end_datetime else False
+      children_posts = Post.query.filter_by(parent_id=post_id).all()
 
       posts[idx]["already_voted"] = already_voted
       posts[idx]["total_vote"] = total_vote
       posts[idx]["vote_period_end"] = vote_period_end
+      posts[idx]["num_of_children"] = len(children_posts)
 
   return posts
 
@@ -699,17 +705,20 @@ class PostResource(Resource):
     this is multiple posts. handle here to avoid code complexity
     """
     if vote_type_id == "3":
-      # try:
-      handle_vote_type_3(data, lang_id, user_info_id, group_id)
-      db.session.commit()
-      return {"message": "successfully created a post"}, 200
-      # except:
-      #   db.session.rollback()
-      #   return {}, 400
-
+      try:
+        handle_vote_type_3(data, lang_id, user_info_id, group_id)
+        db.session.commit()
+        return {"message": "successfully created a post"}, 200
+      except:
+        db.session.rollback()
+        return {}, 400
 
 
     title = data['title']
+
+    if not title:
+      raise ValueError("no title")
+
     content = data['content']
     end_at = data['end_at']
     vote_obj = data["vote_obj"]

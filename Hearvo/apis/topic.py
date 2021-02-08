@@ -64,6 +64,10 @@ class TopicResource(Resource):
     """
     if "startswith" in request.args.keys():
       startswith_word = request.args["startswith"]
+
+      if len(startswith_word) == 0:
+        return [], 200
+
       topics = Topic.query.filter(Topic.topic.startswith(startswith_word)).order_by(Topic.num_of_posts.desc()).all()
       result = topics_schema.dump(topics)
       return result, 200

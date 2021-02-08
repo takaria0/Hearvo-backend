@@ -71,15 +71,15 @@ class UserResource(Resource):
         return {}, status_code
 
     else:
-      description = request.json["description"]
+      # description = request.json["description"]
       gender = request.json["gender"]
       birth_year = request.json["birth_year"]
-      occupation = request.json["occupation"]
+      # occupation = request.json["occupation"]
 
-      user_info_obj.description = description
+      # user_info_obj.description = description
       user_info_obj.gender = gender
       user_info_obj.birth_year = birth_year
-      user_info_obj.occupation = occupation
+      # user_info_obj.occupation = occupation
       
       try:
         db.session.add(user_info_obj)
