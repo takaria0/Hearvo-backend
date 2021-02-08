@@ -9,6 +9,15 @@ subdomain_dict = {
 }
 
 def get_lang_id(base_url):
+  """
+  get lang_id by extracting the subdomain of the request url. e.g. jp.hearvo.vo >> jp
+
+  For now this works fine. But for the future iOS and Android releases, we need to change this to use header instead of dechiphering the subdomain of the request url.
+  
+  And also, we may not need Lang table since we can just set the one-to-one relation in Python dict like the above subdomain_dict.
+
+  request.headers["Language"]
+  """
   ext = tldextract.extract(base_url)
   subdomain = ext.subdomain
 

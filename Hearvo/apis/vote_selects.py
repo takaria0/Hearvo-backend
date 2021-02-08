@@ -115,6 +115,7 @@ class VoteSelectUserResource(Resource):
   @jwt_required
   def post(self):
     logger_api("request.json", request.json)
+    cache_delete_all_posts()
     user_info_id = get_jwt_identity()
     logger_api("user_info_id", user_info_id)
     vote_select_id = request.json["vote_select_id"]
@@ -150,7 +151,7 @@ class VoteSelectUserResource(Resource):
       db.session.add(user_info_post_voted_obj)
       db.session.commit()
 
-      cache_delete_all_posts()
+      
 
       res_obj = {"message": "created"}
       status_code = 200
@@ -164,6 +165,80 @@ class VoteSelectUserResource(Resource):
 
     return res_obj, status_code
 
+
+
+class MultipleVoteUsersResource(Resource):
+
+  @jwt_required
+  def post(self):
+    logger_api("request.json", request.json)
+    cache_delete_all_posts()
+
+    user_info_id = get_jwt_identity()
+    parent_id = request.json["parent_id"]
+    result = request.json["result"]
+
+    """
+    check if the user has already voted for the post
+    """
+    check_obj = UserInfoPostVoted.query.filter_by(post_id=parent_id, user_info_id=user_info_id).all()
+    check_list = [obj.user_info_id for obj in check_obj]
+    if len(check_list) >= 1:
+      res_obj = {"message": "failed to create"}
+      status_code = 200
+      logger.info("ALREADY CREATED")
+      return res_obj, status_code
+      
+    """
+    create assosiation between the user, the post and the vote result
+    """
+    new_vote_select_list = []
+    user_info_post_voted_list = []
+    for each in result:
+      new_vote_select_list.append(
+        VoteSelectUser(
+          vote_select_id=each["vote_select_id"],
+          user_info_id=user_info_id,
+          post_id=each["post_id"]
+        )
+      )
+      user_info_post_voted_list.append(
+        UserInfoPostVoted(
+          user_info_id=user_info_id,
+          post_id=each["post_id"],
+          vote_type_id=1, # important
+        )
+      )
+
+
+    """
+    update parent post's num of posts
+    """
+    post_obj = Post.query.get(parent_id)
+    post_obj.num_vote = post_obj.num_vote + 1
+    
+    user_info_post_voted_list.append(
+      UserInfoPostVoted(
+        user_info_id=user_info_id,
+        post_id=parent_id,
+        vote_type_id=3, # important
+      )
+    )
+
+    # try:
+    db.session.bulk_save_objects(new_vote_select_list)
+    db.session.bulk_save_objects(user_info_post_voted_list)
+    db.session.add(post_obj)
+    db.session.commit()
+
+    res_obj = {"message": "created"}
+    status_code = 200
+    # except:
+    #   db.session.rollback()
+    #   res_obj = {"message": "failed to create"}
+    #   status_code = 400
+
+    return res_obj, status_code
 
 
 

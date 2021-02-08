@@ -2,22 +2,28 @@ from flask_marshmallow import Marshmallow
 from marshmallow_sqlalchemy import SQLAlchemyAutoSchema, fields
 from marshmallow_sqlalchemy.fields import Nested
 
-from .models import Post, User, VoteSelect, VoteSelectUser, Comment, UserInfo, VoteType, VoteMj, MjOption, Topic, PostTopic, UserInfoTopic
+from .models import Post, User, VoteSelect, VoteSelectUser, Comment, UserInfo, VoteType, VoteMj, MjOption, Topic, PostTopic, UserInfoTopic, Group, UserInfoPostVoted, CommentFav
 
-
+class GroupSchema(SQLAlchemyAutoSchema):
+  class Meta:
+    model = Group
+    include_relationships = True
+    # exclude = ("hashed_password",)
 
 class TopicSchema(SQLAlchemyAutoSchema):
   class Meta:
     model = Topic
     include_relationships = True
-    # exclude = ("hashed_password",)
+    exclude = ("post_topic",)
+
+  # post_topic_length = len(post_topic)
     
 
 class PostTopicSchema(SQLAlchemyAutoSchema):
   class Meta:
     model = PostTopic
     include_relationships = True
-    # exclude = ("hashed_password",)
+    exclude = ("created_at", "updated_at",)
     
   topic = Nested(TopicSchema, many=False)
 
@@ -54,11 +60,18 @@ class UserInfoSchema(SQLAlchemyAutoSchema):
     include_relationships = True
     exclude = ("vote_selects","posts","comments",)
    
+class UserInfoPostVotedSchema(SQLAlchemyAutoSchema):
+  class Meta:
+    model = UserInfoPostVoted
+    include_relationships = True
+
+  user_info = Nested(UserInfoSchema(exclude=("vote_selects","posts","comments", )), many=True)
+
 
 class VoteSelectSchema(SQLAlchemyAutoSchema):
   class Meta:
     model = VoteSelect
-
+    exclude = ("created_at", "updated_at",)
 
 
 class VoteSelectUserSchema(SQLAlchemyAutoSchema):
@@ -94,7 +107,13 @@ class VoteTypeSchema(SQLAlchemyAutoSchema):
     include_relationships = True
     exclude = ("posts",)
 
+class CommentFavSchema(SQLAlchemyAutoSchema):
+  class Meta:
+    model = CommentFav
+    include_relationships = True
+    include_fk = True
 
+  
 
 class CommentSchema(SQLAlchemyAutoSchema):
   class Meta:
@@ -102,6 +121,7 @@ class CommentSchema(SQLAlchemyAutoSchema):
     include_relationships = True
 
   user_info = Nested(UserInfoSchema(exclude=("vote_selects","posts","comments",)), many=False)
+  comment_favs = Nested(CommentFavSchema, many=True)
     # exclude = ("hashed_password",)
 
 
