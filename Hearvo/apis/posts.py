@@ -745,30 +745,30 @@ class PostResource(Resource):
         created_at=datetime.now(timezone(timedelta(hours=0), 'UTC')).isoformat()
       )
 
-      # try:
-      db.session.add(new_post)
-      db.session.flush()
+      try:
+        db.session.add(new_post)
+        db.session.flush()
 
-      post_id = new_post.id
+        post_id = new_post.id
 
-      """ 
-      if this was posted in a group, update a relation between the post and the group
-      """
-      update_num_of_posts(group_id, post_id)
+        """ 
+        if this was posted in a group, update a relation between the post and the group
+        """
+        update_num_of_posts(group_id, post_id)
 
-      """
-      save topics of the posts
-      """
-      topic_ids = save_unique_topic(topic_list, lang_id, post_id)
+        """
+        save topics of the posts
+        """
+        topic_ids = save_unique_topic(topic_list, lang_id, post_id)
 
-      db.session.commit()
-      cache_delete_all_posts()
-      status_code = 200
-      return post_schema.dump(new_post), status_code
+        db.session.commit()
+        cache_delete_all_posts()
+        status_code = 200
+        return post_schema.dump(new_post), status_code
 
-      # except:
-        # db.session.rollback()
-        # return {}, 400
+      except:
+        db.session.rollback()
+        return {}, 400
 
     """
     vote_type_id = 2. this post is majority judgement
