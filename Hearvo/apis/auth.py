@@ -60,6 +60,7 @@ class SignupResource(Resource):
 
       new_user_info = UserInfo(
         name=user_name,
+        profile_name=user_name,
         user_id=new_user.id,
         lang_id=lang_id,
       )

@@ -15,6 +15,8 @@ from flask_jwt_extended import (
 )
 from flask_cors import CORS
 from flask_caching import Cache
+from flask_limiter import Limiter
+from flask_limiter.util import get_remote_address
 
 
 
@@ -51,6 +53,11 @@ CORS(app, origins=config.ALLOW_ORIGIN_LIST, methods=["GET", "HEAD", "POST", "OPT
 Migrate(app, db)
 api = Api(app)
 jwt = JWTManager(app)
+limiter = Limiter(
+    app,
+    key_func=get_remote_address,
+    # default_limits=["3000 per day", "300 per hour"]
+)
 
 
 
