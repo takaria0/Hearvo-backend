@@ -23,7 +23,7 @@ topics_schema = TopicSchema(many=True)
 # Routes to handle API
 #########################################
 class TopicResource(Resource):
-  @jwt_required
+  # @jwt_required
   def get(self):
     """
     /topics:
@@ -32,7 +32,7 @@ class TopicResource(Resource):
     /topics?startswith=XXX:
     get topics that starts with XXX order by popularity
     """
-    user_info_id = get_jwt_identity()
+    # user_info_id = get_jwt_identity()
     lang_id = get_lang_id(request.base_url)
 
 
@@ -81,12 +81,12 @@ class TopicResource(Resource):
       if len(startswith_word) == 0:
         return [], 200
 
-      topics = Topic.query.filter(Topic.topic.startswith(startswith_word)).order_by(Topic.num_of_posts.desc()).all()
+      topics = Topic.query.filter(Topic.topic.startswith(startswith_word)).order_by(Topic.num_of_posts.desc()).limit(20).all()
       result = topics_schema.dump(topics)
       return result, 200
 
     # filter by lang_id and popularity (num of contents)?
-    topics = Topic.query.order_by(Topic.num_of_posts.desc()).all()
+    topics = Topic.query.order_by(Topic.num_of_posts.desc()).limit(20).all()
     result = topics_schema.dump(topics)
     status_code = 200
     return result, status_code
