@@ -50,7 +50,7 @@ class UserInfoGETSchema(SQLAlchemyAutoSchema):
   class Meta:
     model = UserInfo
     include_relationships = True
-    # exclude = ("vote_selects","posts","comments",)
+    exclude = ("vote_selects","posts","comments","vote_select_user",)
   
 
 
@@ -58,25 +58,32 @@ class UserInfoSchema(SQLAlchemyAutoSchema):
   class Meta:
     model = UserInfo
     include_relationships = True
-    exclude = ("vote_selects","posts","comments",)
+    exclude = ("vote_selects","posts","comments","vote_select_user",)
    
 class UserInfoPostVotedSchema(SQLAlchemyAutoSchema):
   class Meta:
     model = UserInfoPostVoted
     include_relationships = True
 
-  user_info = Nested(UserInfoSchema(exclude=("vote_selects","posts","comments", )), many=True)
+  user_info = Nested(UserInfoSchema(exclude=("vote_selects","posts","comments","vote_select_user", )), many=True)
 
 
 class VoteSelectSchema(SQLAlchemyAutoSchema):
   class Meta:
     model = VoteSelect
+    include_relationships = True
     exclude = ("created_at", "updated_at",)
+
+  users = Nested(UserInfoSchema(exclude=("vote_selects","posts","comments","vote_select_user", )), many=True)
 
 
 class VoteSelectUserSchema(SQLAlchemyAutoSchema):
   class Meta:
     model = VoteSelectUser
+    include_fk = True
+    include_relationships = True
+
+  user_info = Nested(UserInfoSchema(exclude=("vote_selects","posts","comments","vote_select_user", )), many=False)
 
 
 
@@ -120,7 +127,7 @@ class CommentSchema(SQLAlchemyAutoSchema):
     model = Comment
     include_relationships = True
 
-  user_info = Nested(UserInfoSchema(exclude=("vote_selects","posts","comments",)), many=False)
+  user_info = Nested(UserInfoSchema(exclude=("vote_selects","posts","comments","vote_select_user",)), many=False)
   comment_favs = Nested(CommentFavSchema, many=True)
     # exclude = ("hashed_password",)
 
@@ -135,7 +142,7 @@ class PostSchema(SQLAlchemyAutoSchema):
   vote_mjs = Nested(VoteMjSchema, many=True)
   topics = Nested(PostTopicSchema, many=True)
   mj_options = Nested(MjOptionSchema, many=True)
-  user_info = Nested(UserInfoSchema(exclude=("vote_selects","posts","comments", )), many=False)
+  user_info = Nested(UserInfoSchema(exclude=("vote_selects","posts","comments", "vote_select_user",)), many=False)
   vote_type = Nested(VoteTypeSchema(many=False))
 
   # comments = Nested(CommentSchema(exclude=("user",)), many=True)

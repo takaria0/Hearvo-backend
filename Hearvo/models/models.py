@@ -157,6 +157,10 @@ class VoteSelectUser(db.Model):
   user_info_id = db.Column(db.BigInteger, db.ForeignKey('user_info.id'), primary_key=True)
   post_id = db.Column(db.BigInteger, db.ForeignKey('post.id'), primary_key=True)
 
+  # one to one
+  user_info = db.relationship('UserInfo', backref='vote_select_user', lazy=True, uselist=False)
+
+
   def __repr__(self):
       return '<VoteSelectUser %s>' % self.vote_select_id
 

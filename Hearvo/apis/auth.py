@@ -111,7 +111,7 @@ class LoginResource(Resource):
       db.session.add(user_info_obj)
       db.session.commit()
       
-      expires = datetime.timedelta(days=30)
+      expires = timedelta(days=30)
       access_token = create_access_token(identity=str(user_info_obj.id), expires_delta=expires)
       # headers = {'Set-Cookie': access_token}
       return {"token": access_token}, 200 #, headers
