@@ -116,7 +116,6 @@ class VoteSelectUserResource(Resource):
   @jwt_required
   def post(self):
     logger_api("request.json", request.json)
-    cache_delete_all_posts()
     user_info_id = get_jwt_identity()
     logger_api("user_info_id", user_info_id)
     vote_select_id = request.json["vote_select_id"]
@@ -174,7 +173,6 @@ class MultipleVoteUsersResource(Resource):
   @jwt_required
   def post(self):
     logger_api("request.json", request.json)
-    cache_delete_all_posts()
 
     user_info_id = get_jwt_identity()
     parent_id = request.json["parent_id"]

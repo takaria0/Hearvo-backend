@@ -553,7 +553,7 @@ class PostResource(Resource):
     group_id: id of the group posts belong to 
     """
     logger_api("request.base_url", request.base_url)
-    cache_delete_all_posts()
+
     """ 
     maximum page length is currently 20, beyond that, no longer return the data 
     """
@@ -648,27 +648,24 @@ class PostResource(Resource):
       
       if keyword == "popular":
         time = request.args["time"] if ("time" in request.args.keys()) and (request.args["time"] != "") else None
-        count_vote_obj = cache.get('popular_posts_page_{}_time_{}'.format(page, time))
         status_code = 200
-        logger_api("popular cache hit or not", (count_vote_obj is not None))
 
-        if count_vote_obj is None:
-          if time == "today":
-            yesterday_datetime = (datetime.now(timezone(timedelta(hours=0), 'UTC')) - timedelta(hours=24)).isoformat()
-          elif time == "now":
-            yesterday_datetime = (datetime.now(timezone(timedelta(hours=0), 'UTC')) - timedelta(hours=1)).isoformat()
-          elif time == "week":
-            yesterday_datetime = (datetime.now(timezone(timedelta(hours=0), 'UTC')) - timedelta(days=7)).isoformat()
-          elif time == "month":
-            yesterday_datetime = (datetime.now(timezone(timedelta(hours=0), 'UTC')) - timedelta(days=30)).isoformat()
-          else:
-            yesterday_datetime = (datetime.now(timezone(timedelta(hours=0), 'UTC')) - timedelta(days=7)).isoformat()
-          
-          posts = Post.query.filter(Post.lang_id == lang_id, Post.created_at > yesterday_datetime, Post.group_id==group_id, Post.parent_id==None).join(Post.vote_selects, isouter=True).join(Post.vote_mjs, isouter=True).join(Post.mj_options, isouter=True).order_by(Post.num_vote.desc()).distinct().paginate(page, per_page=config.POSTS_PER_PAGE).items
-          
-          post_obj = posts_schema.dump(posts)
-          count_vote_obj = count_vote(post_obj, user_info_id)
-          cache.set('popular_posts_page_{}_time_{}'.format(page, time), count_vote_obj)
+        if time == "today":
+          yesterday_datetime = (datetime.now(timezone(timedelta(hours=0), 'UTC')) - timedelta(hours=24)).isoformat()
+        elif time == "now":
+          yesterday_datetime = (datetime.now(timezone(timedelta(hours=0), 'UTC')) - timedelta(hours=1)).isoformat()
+        elif time == "week":
+          yesterday_datetime = (datetime.now(timezone(timedelta(hours=0), 'UTC')) - timedelta(days=7)).isoformat()
+        elif time == "month":
+          yesterday_datetime = (datetime.now(timezone(timedelta(hours=0), 'UTC')) - timedelta(days=30)).isoformat()
+        else:
+          yesterday_datetime = (datetime.now(timezone(timedelta(hours=0), 'UTC')) - timedelta(days=7)).isoformat()
+        
+        posts = Post.query.filter(Post.lang_id == lang_id, Post.created_at > yesterday_datetime, Post.group_id==group_id, Post.parent_id==None).join(Post.vote_selects, isouter=True).join(Post.vote_mjs, isouter=True).join(Post.mj_options, isouter=True).order_by(Post.num_vote.desc()).distinct().paginate(page, per_page=config.POSTS_PER_PAGE).items
+        
+        post_obj = posts_schema.dump(posts)
+        count_vote_obj = count_vote(post_obj, user_info_id)
+        
         return count_vote_obj, status_code
 
 
@@ -688,16 +685,11 @@ class PostResource(Resource):
       #   return
 
       if keyword == "latest":
-        count_vote_obj = cache.get('latest_posts_page_{}'.format(page))
         status_code = 200
-        logger_api("latest cache hit or not", (count_vote_obj is not None))
-        if count_vote_obj is None:
-          posts = Post.query.filter_by(lang_id=lang_id, group_id=group_id, parent_id=None).join(Post.vote_selects, isouter=True).join(Post.vote_mjs, isouter=True).join(Post.mj_options, isouter=True).order_by(Post.id.desc()).distinct().paginate(page, per_page=config.POSTS_PER_PAGE).items
-          
-          post_obj = posts_schema.dump(posts)
-          count_vote_obj = count_vote(post_obj, user_info_id)
-          cache.set('latest_posts_page_{}'.format(page), count_vote_obj)
-
+        posts = Post.query.filter_by(lang_id=lang_id, group_id=group_id, parent_id=None).join(Post.vote_selects, isouter=True).join(Post.vote_mjs, isouter=True).join(Post.mj_options, isouter=True).order_by(Post.id.desc()).distinct().paginate(page, per_page=config.POSTS_PER_PAGE).items
+        
+        post_obj = posts_schema.dump(posts)
+        count_vote_obj = count_vote(post_obj, user_info_id)
         return count_vote_obj, status_code
 
       if keyword == "myposts":
@@ -853,7 +845,6 @@ class PostResource(Resource):
         topic_ids = save_unique_topic(topic_list, lang_id, post_id, group_id)
 
         db.session.commit()
-        cache_delete_all_posts()
         status_code = 200
         return post_schema.dump(new_post), status_code
 
@@ -899,7 +890,6 @@ class PostResource(Resource):
         """
         topic_ids = save_unique_topic(topic_list, lang_id, post_id, group_id)
         db.session.commit()
-        cache_delete_all_posts()
         
         status_code = 200
         return post_schema.dump(new_post), status_code
