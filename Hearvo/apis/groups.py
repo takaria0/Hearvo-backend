@@ -148,7 +148,7 @@ class GroupUserInfoResource(Resource):
 
     try:
       group_id = group_obj.id
-      user_info_group = UserInfoGroup(user_info_id=user_info_id, group_id=group_id)
+      user_info_group = UserInfoGroup(user_info_id=user_info_id, group_id=group_id, created_at=datetime.now(timezone(timedelta(hours=0), 'UTC')).isoformat())
       group_obj.num_of_users = group_obj.num_of_users + 1
       db.session.add(user_info_group)
       db.session.add(group_obj)

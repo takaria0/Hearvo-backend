@@ -32,7 +32,8 @@ class VoteMjResource(Resource):
   def post(self):
     new_vote_select = VoteMj(
       post_id=request.json["post_id"],
-      content=request.json['content']
+      content=request.json['content'],
+      created_at=datetime.now(timezone(timedelta(hours=0), 'UTC')).isoformat()
     )
 
     try:
@@ -121,7 +122,9 @@ class VoteMjUserResource(Resource):
       mj_option_id=obj["mj_option_id"],
       vote_mj_id=obj["vote_mj_id"],
       user_info_id=user_info_id,
-      post_id=post_id) for obj in vote_mj_obj]
+      post_id=post_id,
+      created_at=datetime.now(timezone(timedelta(hours=0), 'UTC')).isoformat()
+      ) for obj in vote_mj_obj]
 
     post_obj = Post.query.get(post_id)
     post_obj.num_vote = post_obj.num_vote + 1

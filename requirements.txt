@@ -37,4 +37,5 @@ tldextract==3.0.2
 urllib3==1.26.2
 Werkzeug==1.0.1
 Flask-Limiter==1.4
+newrelic==6.0.1.155
 gunicorn
