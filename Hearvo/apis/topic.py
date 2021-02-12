@@ -45,7 +45,7 @@ class TopicResource(Resource):
       # try:
       yesterday_datetime = (datetime.now(timezone(timedelta(hours=0), 'UTC')) - timedelta(hours=24)).isoformat()
       
-      topics = Topic.query.join(PostTopic, PostTopic.topic_id == Topic.id).filter(PostTopic.created_at > yesterday_datetime).limit(10).all()
+      topics = Topic.query.join(PostTopic, PostTopic.topic_id == Topic.id).filter(PostTopic.created_at > yesterday_datetime).order_by(Topic.num_of_posts.desc()).limit(10).all()
       q = db.session.query(Topic.topic, func.sum(Topic.id)).join(PostTopic, PostTopic.topic_id == Topic.id, isouter=True).group_by(Topic.id, PostTopic.topic_id).filter(PostTopic.created_at > yesterday_datetime).all()
       result = topics_schema.dump(q)
       return result, 200
