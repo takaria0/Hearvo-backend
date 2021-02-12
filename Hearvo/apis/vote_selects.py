@@ -33,7 +33,8 @@ class VoteSelectResource(Resource):
   def post(self):
     new_vote_select = VoteSelect(
       post_id=request.json["post_id"],
-      content=request.json['content']
+      content=request.json['content'],
+      created_at=datetime.now(timezone(timedelta(hours=0), 'UTC')).isoformat()
     )
 
     try:
@@ -125,7 +126,8 @@ class VoteSelectUserResource(Resource):
     new_vote_select = VoteSelectUser(
       vote_select_id=vote_select_id,
       user_info_id=user_info_id,
-      post_id=post_id
+      post_id=post_id,
+      created_at=datetime.now(timezone(timedelta(hours=0), 'UTC')).isoformat()
     )
 
     post_obj = Post.query.get(post_id)

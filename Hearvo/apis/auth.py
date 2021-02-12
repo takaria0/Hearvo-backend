@@ -1,5 +1,5 @@
 import os
-import datetime
+from datetime import datetime, timedelta, timezone
 
 from flask import request, Response, abort, jsonify, Blueprint
 from flask_restful import Resource
@@ -53,6 +53,7 @@ class SignupResource(Resource):
       new_user = User(
         email=email,
         hashed_password=hashed_password,
+        created_at=datetime.now(timezone(timedelta(hours=0), 'UTC')).isoformat()
       )
 
       db.session.add(new_user)
@@ -63,6 +64,7 @@ class SignupResource(Resource):
         profile_name=user_name,
         user_id=new_user.id,
         lang_id=lang_id,
+        created_at=datetime.now(timezone(timedelta(hours=0), 'UTC')).isoformat()
       )
 
       db.session.add(new_user_info)

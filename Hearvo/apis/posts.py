@@ -19,6 +19,50 @@ from Hearvo.utils import cache_delete_latest_posts, cache_delete_all_posts
 user_info_post_voted_schema = UserInfoPostVotedSchema(many=True)
 
 
+def distribute_year(age_list):
+  result =   {
+    "0_9": 0,
+    "10_19": 0,
+    "20_29": 0,
+    "30_39": 0,
+    "40_49": 0,
+    "50_59": 0,
+    "60_69": 0,
+    "70_79": 0,
+    "80_89": 0,
+    "90_99": 0,
+    "100_109": 0,
+    "110_119": 0,
+  }
+
+  for age in age_list:
+    if 0 <= age <= 9:
+      result["0_9"] = result["0_9"] + 1
+    if 10 <= age <= 19:
+      result["10_19"] = result["10_19"] + 1
+    if 20 <= age <= 29:
+      result["20_29"] = result["20_29"] + 1
+    if 30 <= age <= 39:
+      result["30_39"] = result["30_39"] + 1
+    if 40 <= age <= 49:
+      result["40_49"] = result["40_49"] + 1
+    if 50 <= age <= 59:
+      result["50_59"] = result["50_59"] + 1
+    if 60 <= age <= 69:
+      result["60_69"] = result["60_69"] + 1
+    if 70 <= age <= 79:
+      result["70_79"] = result["70_79"] + 1
+    if 80 <= age <= 89:
+      result["80_89"] = result["80_89"] + 1
+    if 90 <= age <= 99:
+      result["90_99"] = result["90_99"] + 1
+    if 100 <= age <= 109:
+      result["100_109"] = result["100_109"] + 1
+    if 110 <= age <= 119:
+      result["110_119"] = result["110_119"] + 1
+
+  return result
+
 def handle_vote_type_3(data, lang_id, user_info_id, group_id):
   """
   save multiple posts
@@ -68,7 +112,7 @@ def handle_vote_type_3(data, lang_id, user_info_id, group_id):
   update_num_of_posts(group_id, parent_id)
 
   """ save topics of the posts """
-  topic_ids = save_unique_topic(topic_list, lang_id, parent_id)
+  topic_ids = save_unique_topic(topic_list, lang_id, parent_id, group_id)
 
   """ save the children """
   children_data_all = []
@@ -120,16 +164,34 @@ def get_age_distribution(post_id):
   get age distribution of the post
 
   {
-    "0_10": 3,
-    "10_20": 4,
-    "20_30": 10,
-    ...
-    "110_120": 0
+    "0_9": 3,
+    "10_19": 4,
+    "20_29": 10,
+    "30_39": 10,
+    "40_49": 10,
+    "50_59": 10,
+    "60_69": 10,
+    "70_79": 10,
+    "80_89": 10,
+    "90_99": 10,
+    "100_109": 10,
+    "110_119": 0
   }
   """
 
+  def year_to_age(birth_year):
+    current_year = datetime.now(timezone(timedelta(hours=0), 'UTC')).year
+    return current_year - birth_year
+
+
+
   ## WORKING ON IT
-  return
+  base_data = UserInfo.query.join(UserInfoPostVoted, UserInfoPostVoted.user_info_id==UserInfo.id).filter_by(post_id=post_id).all()
+  birth_year_list = [x.birth_year for x in base_data] # [1999, 1980, 2000, 1976, 1989, ...]
+  age_list = [ year_to_age(birth_year) for birth_year in birth_year_list]
+  result = distribute_year(age_list)
+  return result
+
 
 
 def get_my_vote(post_id, user_info_id):
@@ -168,7 +230,7 @@ def get_posts_from_db():
   return
 
 
-def save_unique_topic(topic_list, lang_id, post_id):
+def save_unique_topic(topic_list, lang_id, post_id, group_id):
   """
   check Topic Table and insert new topics to DB
   update num of posts of existential topics
@@ -178,9 +240,16 @@ def save_unique_topic(topic_list, lang_id, post_id):
   topic_ids = []
   fetched_data = Topic.query.filter(Topic.topic.in_(topic_list)).all()
 
+  """
+  doesn't add num of post if the post was posted in a closed group
+  """
+  add_num = 1
+  if group_id:
+    add_num = 0
+
   # update topic num of posts
   for topic in fetched_data:
-    topic.num_of_posts = topic.num_of_posts + 1
+    topic.num_of_posts = topic.num_of_posts + add_num
 
   # update num of posts
   db.session.bulk_save_objects(fetched_data)
@@ -192,7 +261,7 @@ def save_unique_topic(topic_list, lang_id, post_id):
     if topic in topic_in_db:
       pass
     else:
-      save_data.append(Topic(topic=topic, lang_id=lang_id, num_of_posts=1))
+      save_data.append(Topic(topic=topic, lang_id=lang_id, num_of_posts=add_num))
 
   # save new topics
   for data in save_data:
@@ -209,7 +278,11 @@ def save_unique_topic(topic_list, lang_id, post_id):
   save topics
   """
   if topic_ids and len(topic_ids) > 0:
-    post_topic_data = [PostTopic(post_id=post_id, topic_id=tp_id) for tp_id in topic_ids]
+    post_topic_data = [PostTopic(
+      post_id=post_id,
+      topic_id=tp_id,
+      created_at=datetime.now(timezone(timedelta(hours=0), 'UTC')).isoformat()
+      ) for tp_id in topic_ids]
     db.session.bulk_save_objects(post_topic_data)
 
   return topic_ids
@@ -545,6 +618,7 @@ class PostResource(Resource):
         post_obj = post_schema.dump(post)
         count_vote_obj = count_vote_option(post_obj, user_info_id, options)[0]
         count_vote_obj["gender_distribution"] = get_gender_distribution(id)
+        count_vote_obj["age_distribution"] = get_age_distribution(id)
         count_vote_obj["my_vote"] = get_my_vote(id, user_info_id)
         return count_vote_obj, status_code
       else:
@@ -554,6 +628,7 @@ class PostResource(Resource):
         post_obj = post_schema.dump(post)
         count_vote_obj = count_vote(post_obj, user_info_id)[0]
         count_vote_obj["gender_distribution"] = get_gender_distribution(id)
+        count_vote_obj["age_distribution"] = get_age_distribution(id)
         count_vote_obj["my_vote"] = get_my_vote(id, user_info_id)
         return count_vote_obj, status_code
 
@@ -595,6 +670,22 @@ class PostResource(Resource):
           count_vote_obj = count_vote(post_obj, user_info_id)
           cache.set('popular_posts_page_{}_time_{}'.format(page, time), count_vote_obj)
         return count_vote_obj, status_code
+
+
+      # if keyword == "recommend":
+      #     posts_by_topic = Post.query.filter_by(lang_id=lang_id, parent_id=None)
+      #     .join(Post.vote_selects, isouter=True)
+      #     .join(Post.vote_mjs, isouter=True)
+      #     .join(Post.mj_options, isouter=True).
+      #     .join(PostTopic, PostTopic.id == Post.id)
+      #     .join(UserInfoTopic, UserInfoTopic.topic_id, PostTopic.topic_id).filter_by(user_info_id=user_info_id)
+      #     .order_by(Post.id.desc()).distinct().paginate(page, per_page=config.POSTS_PER_PAGE).items
+
+      #     # Post.query.filter_by(lang_id=lang_id, group_id=group_id, parent_id=None).join(Post.vote_selects, isouter=True).join(Post.vote_mjs, isouter=True).join(Post.mj_options, isouter=True).order_by(Post.id.desc()).distinct().paginate(page, per_page=config.POSTS_PER_PAGE).items
+          
+      #     post_obj = posts_schema.dump(posts)
+      #     count_vote_obj = count_vote(post_obj, user_info_id)
+      #   return
 
       if keyword == "latest":
         count_vote_obj = cache.get('latest_posts_page_{}'.format(page))
@@ -759,7 +850,7 @@ class PostResource(Resource):
         """
         save topics of the posts
         """
-        topic_ids = save_unique_topic(topic_list, lang_id, post_id)
+        topic_ids = save_unique_topic(topic_list, lang_id, post_id, group_id)
 
         db.session.commit()
         cache_delete_all_posts()
@@ -786,6 +877,7 @@ class PostResource(Resource):
           vote_mjs=vote_obj_list,
           group_id=group_id,
           vote_type_id=2,
+          created_at=datetime.now(timezone(timedelta(hours=0), 'UTC')).isoformat()
         )
         
         db.session.add(new_post)
@@ -805,7 +897,7 @@ class PostResource(Resource):
         """
         save topics of the posts
         """
-        topic_ids = save_unique_topic(topic_list, lang_id, post_id)
+        topic_ids = save_unique_topic(topic_list, lang_id, post_id, group_id)
         db.session.commit()
         cache_delete_all_posts()
         
