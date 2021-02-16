@@ -45,16 +45,6 @@ flask db upgrade
 above command migrate db and update the migrations folder. 
 
 
-# 2020 11-16~
-DB initialize
-
-vote_type
-1 vote_select
-2 vote_mj
-
-lang
-1 ja
-2 en
 
 
 # TODO since 2020-11-07
