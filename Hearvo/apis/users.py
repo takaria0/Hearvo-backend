@@ -7,8 +7,8 @@ import bcrypt
 
 import Hearvo.config as config
 from ..app import logger
-from ..models import db, User, UserGETSchema, UserInfo, UserInfoGETSchema, UserInfoPostVoted, UserInfoTopic
-from Hearvo.middlewares.detect_language import get_country_id
+from ..models import db, User, UserGETSchema, UserInfo, UserInfoGETSchema
+from Hearvo.middlewares.detect_language import get_lang_id
 from .logger_api import logger_api
 
 DELETED_USER_NAME = "<削除済み>" 
@@ -30,22 +30,12 @@ class UserResource(Resource):
   @jwt_required
   def get(self):
     user_info_id = get_jwt_identity()
-
-    if "profile_detail" in request.args.keys():
-      following_topics = UserInfoTopic.query.filter_by(user_info_id=user_info_id).all()
-      num_of_votes = UserInfoPostVoted.query.filter_by(user_info_id=user_info_id).all()
-      user = UserInfo.query.filter_by(id=user_info_id).first()
-      user = user_info_schema.dump(user)
-      return { **user, "num_of_following_topics": len(following_topics), "num_of_votes": len(num_of_votes) }, 200
-
-
     user = UserInfo.query.filter_by(id=user_info_id).first()
     return user_info_schema.dump(user), 200
 
   @jwt_required
   def put(self):
     user_info_id = get_jwt_identity()
-
     user_info_obj = UserInfo.query.get(user_info_id)
 
     if "login_count" in request.args.keys():
@@ -62,13 +52,11 @@ class UserResource(Resource):
     elif "initial_setting" in request.args.keys():
       gender = request.json["gender"]
       birth_year = request.json["birth_year"]
-      gender_detail = request.json["gender_detail"]
       # occupation = request.json["occupation"]
 
       # UPDATE USER
       user_info_obj.gender = gender
       user_info_obj.birth_year = birth_year
-      user_info_obj.gender_detail = gender_detail
       # user_info_obj.occupation = occupation
 
       try:
@@ -107,7 +95,7 @@ class UserResource(Resource):
   @jwt_required
   def delete(self):
     user_info_id = get_jwt_identity()
-    country_id = get_country_id(request)
+    lang_id = get_lang_id(request.base_url)
     confirm_password = request.headers['confirmPassword']
     logger_api('confirm_password',confirm_password)
 
@@ -123,7 +111,7 @@ class UserResource(Resource):
         # UPDATE EMAIL TO NULL, NAME TO <deleted>
         user.deleted_email = user.email
         user.email = None
-        user_info.name = DELETED_USER_NAME_MAP[country_id]
+        user_info.name = DELETED_USER_NAME_MAP[lang_id]
 
         db.session.add(user)
         db.session.add(user_info)
