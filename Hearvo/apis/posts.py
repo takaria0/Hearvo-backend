@@ -242,7 +242,7 @@ def save_unique_topic(topic_list, country_id, post_id, group_id):
   return topic ids
   """
   topic_ids = []
-  fetched_data = Topic.query.filter(Topic.topic.in_(topic_list)).all()
+  fetched_data = Topic.query.filter(Topic.topic.in_(topic_list), Topic.country_id == country_id).all()
 
   """
   doesn't add num of post if the post was posted in a closed group
