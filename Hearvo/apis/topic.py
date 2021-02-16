@@ -11,7 +11,7 @@ import Hearvo.config as config
 from ..app import logger
 from ..models import db, Topic, TopicSchema, UserInfoTopic, PostTopic
 from .logger_api import logger_api
-from Hearvo.middlewares.detect_language import get_country_id
+from Hearvo.middlewares.detect_language import get_lang_id
 
 
 #########################################
@@ -34,7 +34,7 @@ class TopicResource(Resource):
     get topics that starts with XXX order by popularity
     """
     # user_info_id = get_jwt_identity()
-    country_id = get_country_id(request)
+    lang_id = get_lang_id(request.base_url)
 
 
     """
@@ -42,23 +42,15 @@ class TopicResource(Resource):
     do not include group's topic
     """
     if "sidebar" in request.args.keys():
-      try:
-        """
-        get popular topics in the last 24 hours
-        """
-        yesterday_datetime = (datetime.now(timezone(timedelta(hours=0), 'UTC')) - timedelta(hours=24)).isoformat()
-        q = db.session.query(Topic.topic, func.count(PostTopic.topic_id)) \
-        .join(PostTopic, PostTopic.topic_id == Topic.id, isouter=True) \
-        .order_by(func.count(PostTopic.topic_id).desc()) \
-        .group_by(Topic.id, PostTopic.topic_id) \
-        .filter(PostTopic.created_at > yesterday_datetime, Topic.country_id == country_id) \
-        .limit(10) \
-        .all() 
-
-        result = topics_schema.dump(q)
-        return result, 200
-      except:
-        return [], 400
+      # try:
+      yesterday_datetime = (datetime.now(timezone(timedelta(hours=0), 'UTC')) - timedelta(hours=24)).isoformat()
+      
+      topics = Topic.query.join(PostTopic, PostTopic.topic_id == Topic.id).filter(PostTopic.created_at > yesterday_datetime).order_by(Topic.num_of_posts.desc()).limit(10).all()
+      q = db.session.query(Topic.topic, func.sum(Topic.id)).join(PostTopic, PostTopic.topic_id == Topic.id, isouter=True).group_by(Topic.id, PostTopic.topic_id).filter(PostTopic.created_at > yesterday_datetime).all()
+      result = topics_schema.dump(q)
+      return result, 200
+      # except:
+      #   return [], 400
 
     """
     return initial topics. save topics beforehand
@@ -72,7 +64,7 @@ class TopicResource(Resource):
           if check_topic:
             pass
           else:
-            db.session.add(Topic(topic=topic, country_id=country_id))
+            db.session.add(Topic(topic=topic, lang_id=lang_id))
         
         db.session.commit()
         topics = Topic.query.filter(Topic.topic.in_(initial_topics)).all()
@@ -93,11 +85,11 @@ class TopicResource(Resource):
       if len(startswith_word) == 0:
         return [], 200
 
-      topics = Topic.query.filter(Topic.topic.startswith(startswith_word), Topic.country_id==country_id).order_by(Topic.num_of_posts.desc()).limit(20).all()
+      topics = Topic.query.filter(Topic.topic.startswith(startswith_word)).order_by(Topic.num_of_posts.desc()).limit(20).all()
       result = topics_schema.dump(topics)
       return result, 200
 
-    # filter by country_id and popularity (num of contents)?
+    # filter by lang_id and popularity (num of contents)?
     # topics = Topic.query.order_by(Topic.num_of_posts.desc()).limit(20).all()
     # result = topics_schema.dump(topics)
     # status_code = 200
@@ -151,34 +143,10 @@ class UserInfoTopicResource(Resource):
     """
     logger_api("request.json", str(request.json))
     user_info_id = get_jwt_identity()
-    country_id = get_country_id(request)
     logger_api("user_info_id", str(user_info_id))
 
-
-    """
-    check the user has already followed the topic
-    """
-    if "topic_word" in request.args.keys():
-      try:
-        """
-        get popular topics in the last 24 hours
-        """
-        topic_word = request.args["topic_word"]
-        topic_obj = Topic.query.filter_by(topic=topic_word, country_id=country_id).first()
-        has_followed = UserInfoTopic.query.filter_by(user_info_id=user_info_id).join(Topic,Topic.id == UserInfoTopic.topic_id).filter_by(topic=topic_word).first()
-
-        
-        if has_followed:
-          result = {"following": True, "topic_id": topic_obj.id, "num_of_posts": topic_obj.num_of_posts, "num_of_users": topic_obj.num_of_users}
-        else:
-          result = {"following": False, "topic_id": topic_obj.id, "num_of_posts": topic_obj.num_of_posts, "num_of_users": topic_obj.num_of_users}
-        return result, 200
-
-      except:
-        return {"following": False, "topic_id": None}, 400
-
     try:
-      topic_list = Topic.query.join(UserInfoTopic, Topic.id == UserInfoTopic.topic_id).filter(UserInfoTopic.user_info_id == user_info_id, Topic.country_id==country_id).limit(100).all()
+      topic_list = Topic.query.join(UserInfoTopic, Topic.id == UserInfoTopic.topic_id).filter_by(user_info_id=user_info_id).all()
       result = topics_schema.dump(topic_list)
       status_code = 200
       return result, status_code
@@ -197,14 +165,13 @@ class UserInfoTopicResource(Resource):
     """
     logger_api("request.json", str(request.json))
     user_info_id = get_jwt_identity()
-    country_id = get_country_id(request)
     logger_api("user_info_id", str(user_info_id))
     topic_id_list = request.json["topic_id_list"]
 
     
     try:
       new_topic_user_info_list = []
-      topic_obj_list = Topic.query.filter(Topic.id.in_(topic_id_list), Topic.country_id==country_id).all()
+      topic_obj_list = Topic.query.filter(Topic.id.in_(topic_id_list)).all()
       # update topic num of users
       for topic_obj in topic_obj_list:
         # check if the user already followed the topic
@@ -231,14 +198,13 @@ class UserInfoTopicResource(Resource):
     """
     logger_api("request.json", str(request.json))
     user_info_id = get_jwt_identity()
-    country_id = get_country_id(request)
     logger_api("user_info_id", str(user_info_id))
     topic_id_list = request.json["topic_id_list"]
 
     
     try:
 
-      topic_obj_list = Topic.query.filter(Topic.id.in_(topic_id_list), Topic.country_id==country_id).all()
+      topic_obj_list = Topic.query.filter(Topic.id.in_(topic_id_list)).all()
       logger_api("topic_obj_list", topic_obj_list)
       # update topic num of users
       for topic_obj in topic_obj_list:

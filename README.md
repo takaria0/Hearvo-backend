@@ -30,21 +30,17 @@ make sure to commit before pushing to heroku
 git commit -am "ahahha"
 git push heroku production:main
 
- 
-# migration
 
-when you add a new column or table, try below before deploy
+# 2020 11-16~
+DB initialize
 
-```
-docker container list # to look up XXX
-docker exec -it XXX bash
-flask db migrate
-flask db upgrade
-```
+vote_type
+1 vote_select
+2 vote_mj
 
-above command migrate db and update the migrations folder. 
-
-
+lang
+1 ja
+2 en
 
 
 # TODO since 2020-11-07
