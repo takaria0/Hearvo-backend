@@ -68,7 +68,7 @@ class TopicResource(Resource):
         initial_topics = json.loads(request.args["initial_topics"])
 
         for topic in initial_topics:
-          check_topic = Topic.query.filter_by(topic=topic).first()
+          check_topic = Topic.query.filter_by(topic=topic, country_id=country_id).first()
           if check_topic:
             pass
           else:
