@@ -31,7 +31,7 @@ git commit -am "ahahha"
 git push heroku production:main
 
  
-# migration
+# migration (local)
 
 when you add a new column or table, try below before deploy
 
@@ -44,8 +44,9 @@ flask db upgrade
 
 above command migrate db and update the migrations folder. 
 
+# migration (on Heroku)
 
-
+difficult
 
 # TODO since 2020-11-07
 
