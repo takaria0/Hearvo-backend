@@ -11,8 +11,9 @@ import bcrypt
 
 import Hearvo.config as config
 from ..app import logger
+from .logger_api import logger_api
 from ..models import db, User, UserSchema, UserInfo
-from Hearvo.middlewares.detect_language import get_lang_id
+from Hearvo.middlewares.detect_language import get_country_id
 
 #########################################
 # Schema
@@ -26,13 +27,13 @@ users_schema = UserSchema(many=True)
 class SignupResource(Resource):
 
   def post(self):
-    lang_id = get_lang_id(request.base_url)
+    country_id = get_country_id(request)
     user_name = request.json["user_name"].lower()
     email = request.json["email"].lower()
     password = request.json["password"]
 
     check_email = User.query.filter_by(email=email).first()
-    check_user_name = UserInfo.query.filter_by(name=user_name).first()
+    check_user_name = User.query.filter_by(name=user_name).first()
 
     if (check_email is not None):
       res_obj =  {"message": "このメールアドレスは既に使われています"}
@@ -51,6 +52,7 @@ class SignupResource(Resource):
 
     try:
       new_user = User(
+        name=user_name,
         email=email,
         hashed_password=hashed_password,
         created_at=datetime.now(timezone(timedelta(hours=0), 'UTC')).isoformat()
@@ -63,7 +65,7 @@ class SignupResource(Resource):
         name=user_name,
         profile_name=user_name,
         user_id=new_user.id,
-        lang_id=lang_id,
+        country_id=country_id,
         created_at=datetime.now(timezone(timedelta(hours=0), 'UTC')).isoformat()
       )
 
@@ -88,7 +90,7 @@ class SignupResource(Resource):
 class LoginResource(Resource):
 
   def post(self):
-    lang_id = get_lang_id(request.base_url)
+    country_id = get_country_id(request)
     email = request.json["email"].lower()
     password = request.json["password"]
 
@@ -101,20 +103,38 @@ class LoginResource(Resource):
 
     # password matching
     if (bcrypt.checkpw(password.encode("utf-8"), hashed_password.encode("utf-8"))):
-
+      logger_api("login_country_id", country_id)
       user_info_obj = UserInfo.query.filter_by(
         user_id=current_user.id,
-        lang_id=lang_id
+        country_id=country_id
       ).first()
 
-      user_info_obj.login_count = user_info_obj.login_count + 1
-      db.session.add(user_info_obj)
+      """
+      login other countries
+      create another user info obj using the same user name
+      """
+      if user_info_obj is None:
+        another_country_user_info = UserInfo(
+          user_id=current_user.id,
+          country_id=country_id,
+          name=current_user.name,
+          profile_name=current_user.name,
+          created_at=datetime.now(timezone(timedelta(hours=0), 'UTC')).isoformat(),
+          login_count=1
+          )
+        db.session.add(another_country_user_info)
+        db.session.flush()
+        user_info_id = another_country_user_info.id
+
+      else:
+        user_info_obj.login_count = user_info_obj.login_count + 1
+        db.session.add(user_info_obj)
+        user_info_id = user_info_obj.id
+
       db.session.commit()
-      
-      expires = datetime.timedelta(days=30)
-      access_token = create_access_token(identity=str(user_info_obj.id), expires_delta=expires)
-      # headers = {'Set-Cookie': access_token}
-      return {"token": access_token}, 200 #, headers
+      expires = timedelta(days=30)
+      access_token = create_access_token(identity=str(user_info_id), expires_delta=expires)
+      return {"token": access_token}, 200
 
     else:
       db.session.rollback()

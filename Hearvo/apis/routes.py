@@ -8,11 +8,11 @@ from ..app import api, app
 from .posts import PostResource
 from .users import UserResource, UserPasswordResource
 from .auth import SignupResource, LoginResource
-from .vote_selects import VoteSelectResource, VoteSelectUserResource, CountVoteSelectResource, MultipleVoteUsersResource
+from .vote_selects import VoteSelectResource, VoteSelectUserResource, CountVoteSelectResource, MultipleVoteUsersResource, VoteSelectCompareResource
 from .vote_mjs import VoteMjResource, VoteMjUserResource, CountVoteMjResource
 from .comments import CommentResource, CommentFavResource
 from .groups import GroupResource, GroupUserInfoResource
-from .topic import UserInfoTopicResource, TopicResource
+from .topics import UserInfoTopicResource, TopicResource
 
 PRE = config.URL_PREFIX
 
@@ -32,6 +32,7 @@ api.add_resource(PostResource, f'/{PRE}/posts')
 api.add_resource(UserResource, f'/{PRE}/users')
 api.add_resource(UserPasswordResource, f'/{PRE}/users/password')
 api.add_resource(VoteSelectResource, f'/{PRE}/vote_selects')
+api.add_resource(VoteSelectCompareResource, f'/{PRE}/vote_selects/compare')
 api.add_resource(VoteMjResource, f'/{PRE}/vote_mjs')
 api.add_resource(CountVoteMjResource, f'/{PRE}/count_vote_mjs')
 api.add_resource(VoteMjUserResource, f'/{PRE}/vote_mj_users')

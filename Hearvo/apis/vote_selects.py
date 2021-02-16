@@ -9,7 +9,7 @@ from flask_jwt_extended import jwt_required, get_jwt_identity
 
 import Hearvo.config as config
 from ..app import logger, cache
-from ..models import db, VoteSelect, VoteSelectSchema, VoteSelectUser, Post, UserInfoPostVoted
+from ..models import db, VoteSelect, VoteSelectSchema, VoteSelectUser, Post, UserInfoPostVoted, UserInfoSchema, UserInfo, VoteSelectUserSchema
 from .logger_api import logger_api
 from Hearvo.utils import cache_delete_latest_posts, cache_delete_all_posts
 
@@ -241,4 +241,268 @@ class MultipleVoteUsersResource(Resource):
     return res_obj, status_code
 
 
+def gender_num_to_text(gender, lang):
 
+  if lang == "jp":
+    jp_gender = {
+      0: '男性',
+      1: '女性',
+      2: 'その他'
+    }
+    return jp_gender[gender]
+
+  return
+
+
+def get_first_result(first_target, parent_id):
+  """
+  first_target: post_id or gender or age
+
+  return
+  [
+    {
+      "content": "大学生",
+      "user_info_id_list: [1,2,5,10]
+    },
+    {
+      "content": "高校生",
+      "user_info_id_list: [3,4,7]
+    },
+    {
+      "content": "小学生",
+      "user_info_id_list: [9,8]
+    }
+  ]
+  """
+  target_type = first_target["type"]
+
+  user_info_schemas = UserInfoSchema(many=True)
+  vote_select_user_schemas = VoteSelectUserSchema(many=True)
+
+  result = []
+  if target_type == "post_id":
+    post_id = first_target["data"]
+    vote_select_obj_list =  VoteSelect.query.filter_by(post_id=post_id).join(VoteSelectUser, VoteSelectUser.post_id == VoteSelect.post_id, isouter=True).all()
+
+    for vote_select_obj in vote_select_obj_list:
+      content = vote_select_obj.content
+      users = user_info_schemas.dump(vote_select_obj.users)
+      user_info_id_list = [user["id"] for user in users]
+      result.append({"content": content, "user_info_id_list": user_info_id_list})
+    
+
+  if target_type == "gender":
+    gender_list = [0, 1, 2]
+    vote_select_user_obj =  VoteSelectUser.query.filter_by(post_id=parent_id).all()
+    vote_select_user_obj = vote_select_user_schemas.dump(vote_select_user_obj)
+    
+
+    for gender in gender_list:
+      user_info_id_list = [vote_obj["user_info_id"] for vote_obj in vote_select_user_obj if vote_obj["user_info"]["gender"] == gender]
+      result.append({"content": gender_num_to_text(gender, 'jp'), "user_info_id_list": user_info_id_list}) # f"debug": vote_select_user_obj})
+
+
+  if target_type == "age":
+    current = datetime.now(timezone(timedelta(hours=0), 'UTC')).year
+    vote_select_user_obj =  VoteSelectUser.query.filter_by(post_id=parent_id).all()
+    vote_select_user_obj = vote_select_user_schemas.dump(vote_select_user_obj)
+    
+    # age 0 to 9
+    user_info_id_list_0_9 =  [vote_obj["user_info_id"] for vote_obj in vote_select_user_obj 
+    if (current - 9 <= vote_obj["user_info"]["birth_year"] and vote_obj["user_info"]["birth_year"] <= current) ]
+    result.append({"content": '0-9', "user_info_id_list": user_info_id_list_0_9}) 
+    # age 10 to 19
+    user_info_id_list_10_19 =  [vote_obj["user_info_id"] for vote_obj in vote_select_user_obj 
+    if (current - 19 <= vote_obj["user_info"]["birth_year"] and vote_obj["user_info"]["birth_year"] <= current - 10) ]
+    result.append({"content": '10-19', "user_info_id_list": user_info_id_list_10_19}) 
+    # age 20 to 29
+    user_info_id_list_20_29 =  [vote_obj["user_info_id"] for vote_obj in vote_select_user_obj 
+    if (current - 29 <= vote_obj["user_info"]["birth_year"] and vote_obj["user_info"]["birth_year"] <= current - 20) ]
+    result.append({"content": '20-29', "user_info_id_list": user_info_id_list_20_29})
+    # age 30 to 39
+    user_info_id_list_30_39 =  [vote_obj["user_info_id"] for vote_obj in vote_select_user_obj 
+    if (current - 39 <= vote_obj["user_info"]["birth_year"] and vote_obj["user_info"]["birth_year"] <= current - 30) ]
+    result.append({"content": '30-39', "user_info_id_list": user_info_id_list_30_39})
+    # age 40 to 49
+    user_info_id_list_40_49 =  [vote_obj["user_info_id"] for vote_obj in vote_select_user_obj 
+    if (current - 49 <= vote_obj["user_info"]["birth_year"] and vote_obj["user_info"]["birth_year"] <= current - 40) ]
+    result.append({"content": '40-49', "user_info_id_list": user_info_id_list_40_49})
+    # age 50 to 59
+    user_info_id_list_50_59 =  [vote_obj["user_info_id"] for vote_obj in vote_select_user_obj 
+    if (current - 59 <= vote_obj["user_info"]["birth_year"] and vote_obj["user_info"]["birth_year"] <= current - 50) ]
+    result.append({"content": '50-59', "user_info_id_list": user_info_id_list_50_59})
+    # age 60 to 69
+    user_info_id_list_60_69 =  [vote_obj["user_info_id"] for vote_obj in vote_select_user_obj 
+    if (current - 69 <= vote_obj["user_info"]["birth_year"] and vote_obj["user_info"]["birth_year"] <= current - 60) ]
+    result.append({"content": '60-69', "user_info_id_list": user_info_id_list_60_69})
+    # age 70 to 79
+    user_info_id_list_70_79 =  [vote_obj["user_info_id"] for vote_obj in vote_select_user_obj 
+    if (current - 79 <= vote_obj["user_info"]["birth_year"] and vote_obj["user_info"]["birth_year"] <= current - 70) ]
+    result.append({"content": '70-79', "user_info_id_list": user_info_id_list_70_79})
+    # age 80 to 89
+    user_info_id_list_80_89 =  [vote_obj["user_info_id"] for vote_obj in vote_select_user_obj 
+    if (current - 89 <= vote_obj["user_info"]["birth_year"] and vote_obj["user_info"]["birth_year"] <= current - 80) ]
+    result.append({"content": '80-89', "user_info_id_list": user_info_id_list_80_89})
+    # age 90 to 99
+    user_info_id_list_90_99 =  [vote_obj["user_info_id"] for vote_obj in vote_select_user_obj 
+    if (current - 99 <= vote_obj["user_info"]["birth_year"] and vote_obj["user_info"]["birth_year"] <= current - 90) ]
+    result.append({"content": '90-99', "user_info_id_list": user_info_id_list_90_99})
+    # age 100 to 109
+    user_info_id_list_100_109 =  [vote_obj["user_info_id"] for vote_obj in vote_select_user_obj 
+    if (current - 109 <= vote_obj["user_info"]["birth_year"] and vote_obj["user_info"]["birth_year"] <= current - 100) ]
+    result.append({"content": '100-109', "user_info_id_list": user_info_id_list_100_109})
+    # age 110 to 119
+    user_info_id_list_110_119 =  [vote_obj["user_info_id"] for vote_obj in vote_select_user_obj 
+    if (current - 119 <= vote_obj["user_info"]["birth_year"] and vote_obj["user_info"]["birth_year"] <= current - 110) ]
+    result.append({"content": '110-119', "user_info_id_list": user_info_id_list_110_119})
+
+  return result
+
+
+def get_second_result(first_result, second_target):
+  """
+  return 
+
+  [
+    {
+      "content": "大学生",
+      "アンドロイド": 10,
+      "iPhone": 5,
+      "その他"：10
+    },
+    {
+      "content": "高校生",
+      "アンドロイド": 8,
+      "iPhone": 2,
+      "その他"：15
+    }
+  ]
+  """
+
+  target_type = second_target["type"]
+  user_info_schemas = UserInfoSchema(many=True)
+
+  result = []
+  if target_type == "post_id":
+    post_id = second_target["data"]
+
+    for first in first_result:
+      first_content = first["content"]
+      user_info_id_list = first["user_info_id_list"]
+      vote_select_obj_list =  VoteSelect.query.filter_by(post_id=post_id).join(VoteSelectUser, VoteSelectUser.post_id == VoteSelect.post_id, isouter=True).filter(VoteSelectUser.user_info_id.in_(user_info_id_list)).all()
+
+      append_content = {"content": first_content}
+      """
+      if you insert the same content, this won't work.
+      """
+      for vote_select_obj in vote_select_obj_list:
+        content = vote_select_obj.content
+        users = vote_select_obj.users
+        users = user_info_schemas.dump(users) # filtering
+        users = [user for user in users if user["id"] in user_info_id_list]
+        append_content[content] = len(users) # here, the same content cannot save in the same place
+        # append_content[f'debug_{content}'] = user_info_schemas.dump(users)
+
+      result.append(append_content)
+
+  if target_type == "gender":
+
+    for first in first_result:
+      first_content = first["content"]
+      user_info_id_list = first["user_info_id_list"]
+      append_content = {"content": first_content}
+
+      male = UserInfo.query.filter(UserInfo.gender==0, UserInfo.id.in_(user_info_id_list)).all()
+      female = UserInfo.query.filter(UserInfo.gender==1, UserInfo.id.in_(user_info_id_list)).all()
+      other = UserInfo.query.filter(UserInfo.gender==2, UserInfo.id.in_(user_info_id_list)).all()
+      append_content[gender_num_to_text(0, 'jp')] = len(male)
+      append_content[gender_num_to_text(1, 'jp')] = len(female)
+      append_content[gender_num_to_text(2, 'jp')] = len(other)
+
+      result.append(append_content)
+
+  if target_type == "age":
+
+    for first in first_result:
+      first_content = first["content"]
+      user_info_id_list = first["user_info_id_list"]
+      append_content = {"content": first_content}
+
+      current = datetime.now(timezone(timedelta(hours=0), 'UTC')).year
+
+      users_0_9 = UserInfo.query.filter(current - 9 <= UserInfo.birth_year, UserInfo.birth_year <= current, UserInfo.id.in_(user_info_id_list)).all()
+      users_10_19 = UserInfo.query.filter(current - 19 <= UserInfo.birth_year, UserInfo.birth_year <= current - 10, UserInfo.id.in_(user_info_id_list)).all()
+      users_20_29 = UserInfo.query.filter(current - 29 <= UserInfo.birth_year, UserInfo.birth_year <= current - 20, UserInfo.id.in_(user_info_id_list)).all()
+      users_30_39 = UserInfo.query.filter(current - 39 <= UserInfo.birth_year, UserInfo.birth_year <= current - 30, UserInfo.id.in_(user_info_id_list)).all()
+      users_40_49 = UserInfo.query.filter(current - 49 <= UserInfo.birth_year, UserInfo.birth_year <= current - 40, UserInfo.id.in_(user_info_id_list)).all()
+      users_50_59 = UserInfo.query.filter(current - 59 <= UserInfo.birth_year, UserInfo.birth_year <= current - 50, UserInfo.id.in_(user_info_id_list)).all()
+      users_60_69 = UserInfo.query.filter(current - 69 <= UserInfo.birth_year, UserInfo.birth_year <= current - 60, UserInfo.id.in_(user_info_id_list)).all()
+      users_70_79 = UserInfo.query.filter(current - 79 <= UserInfo.birth_year, UserInfo.birth_year <= current - 70, UserInfo.id.in_(user_info_id_list)).all()
+      users_80_89 = UserInfo.query.filter(current - 89 <= UserInfo.birth_year, UserInfo.birth_year <= current - 80, UserInfo.id.in_(user_info_id_list)).all()
+      users_90_99 = UserInfo.query.filter(current - 99 <= UserInfo.birth_year, UserInfo.birth_year <= current - 90, UserInfo.id.in_(user_info_id_list)).all()
+      users_100_109 = UserInfo.query.filter(current - 109 <= UserInfo.birth_year, UserInfo.birth_year <= current - 100, UserInfo.id.in_(user_info_id_list)).all()
+      users_110_119 = UserInfo.query.filter(current - 119 <= UserInfo.birth_year, UserInfo.birth_year <= current - 110, UserInfo.id.in_(user_info_id_list)).all()
+
+      append_content["0_9"] = len(users_0_9)
+      append_content["10_19"] = len(users_10_19)
+      append_content["20_29"] = len(users_20_29)
+      append_content["30_39"] = len(users_30_39)
+      append_content["40_49"] = len(users_40_49)
+      append_content["50_59"] = len(users_50_59)
+      append_content["60_69"] = len(users_60_69)
+      append_content["70_79"] = len(users_70_79)
+      append_content["80_89"] = len(users_80_89)
+      append_content["90_99"] = len(users_90_99)
+      append_content["100_109"] = len(users_100_109)
+      append_content["110_119"] = len(users_110_119)
+      result.append(append_content)
+
+
+  return result
+
+
+
+class VoteSelectCompareResource(Resource):
+
+  @jwt_required
+  def post(self):
+    """
+    input 
+    {
+      "parent_id": 10,
+      "first_target": {
+        "type": "post_id",
+        "data": 2
+      },
+      "second_target": {
+        "type": "gender",
+        "data": 0
+      }
+    }
+
+    parent_id is used when first_target is gender or age, or both targets are age and gender.
+    it's just a post id.
+
+    when both targets are post_id, parent_id won't be used
+    """
+    logger_api("request.json", request.json)
+
+    user_info_id = get_jwt_identity()
+    parent_id = request.json["parent_id"]
+    first_target = request.json["first_target"]
+    second_target = request.json["second_target"]
+
+    if first_target["type"] == "gender" and second_target["type"] == "gender":
+      return {"message": "Invalid data"}, 400
+
+    if first_target["type"] == "age" and second_target["type"] == "age":
+      return {"message": "Invalid data"}, 400
+
+    """
+    both target are post id
+    """
+    first_result = get_first_result(first_target, parent_id)
+    second_result = get_second_result(first_result, second_target)
+
+
+    return { "result" : second_result}, 200

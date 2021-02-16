@@ -13,7 +13,7 @@ from ..app import logger, cache, limiter
 from ..models import db, Post, PostSchema, VoteSelect, VoteSelectUser, UserInfoPostVoted, UserInfo, VoteMj, MjOption, VoteMjUser, Topic, PostTopic, PostGroup, Group, UserInfoPostVotedSchema, UserInfoGroup
 
 from .logger_api import logger_api
-from Hearvo.middlewares.detect_language import get_lang_id
+from Hearvo.middlewares.detect_language import get_country_id
 from Hearvo.utils import cache_delete_latest_posts, cache_delete_all_posts
 
 user_info_post_voted_schema = UserInfoPostVotedSchema(many=True)
@@ -63,7 +63,7 @@ def distribute_year(age_list):
 
   return result
 
-def handle_vote_type_3(data, lang_id, user_info_id, group_id):
+def handle_vote_type_3(data, country_id, user_info_id, group_id):
   """
   save multiple posts
   currently, the post has only vote_type 1 children 
@@ -94,7 +94,7 @@ def handle_vote_type_3(data, lang_id, user_info_id, group_id):
         parent_id=None,
         user_info_id=user_info_id,
         title=data["title"],
-        lang_id=lang_id,
+        country_id=country_id,
         content=data["content"],
         end_at=end_at,
         vote_type_id=3,
@@ -112,7 +112,7 @@ def handle_vote_type_3(data, lang_id, user_info_id, group_id):
   update_num_of_posts(group_id, parent_id)
 
   """ save topics of the posts """
-  topic_ids = save_unique_topic(topic_list, lang_id, parent_id, group_id)
+  topic_ids = save_unique_topic(topic_list, country_id, parent_id, group_id)
 
   """ save the children """
   children_data_all = []
@@ -121,7 +121,7 @@ def handle_vote_type_3(data, lang_id, user_info_id, group_id):
     children_data = Post(
           parent_id=parent_id,
           user_info_id=user_info_id,
-          lang_id=lang_id,
+          country_id=country_id,
           end_at=end_at,
           group_id=group_id,
           created_at=datetime.now(timezone(timedelta(hours=0), 'UTC')).isoformat(),
@@ -152,7 +152,7 @@ def get_gender_distribution(post_id):
   # male 0, female 1, others 2
   base_data = UserInfo.query.join(UserInfoPostVoted, UserInfoPostVoted.user_info_id==UserInfo.id).filter_by(post_id=post_id).all()
   gender_data = [x.gender for x in base_data] # [0,0,0,1,1,0,2,1,1,1]
-  logger_api("gender_data", gender_data)
+  # logger_api("gender_data", gender_data)
   male = gender_data.count(0)
   female = gender_data.count(1)
   others = gender_data.count(2)
@@ -180,8 +180,12 @@ def get_age_distribution(post_id):
   """
 
   def year_to_age(birth_year):
-    current_year = datetime.now(timezone(timedelta(hours=0), 'UTC')).year
-    return current_year - birth_year
+    if type(birth_year) == int:
+      current_year = datetime.now(timezone(timedelta(hours=0), 'UTC')).year
+      return current_year - birth_year
+
+    else:
+      return 0
 
 
 
@@ -230,7 +234,7 @@ def get_posts_from_db():
   return
 
 
-def save_unique_topic(topic_list, lang_id, post_id, group_id):
+def save_unique_topic(topic_list, country_id, post_id, group_id):
   """
   check Topic Table and insert new topics to DB
   update num of posts of existential topics
@@ -261,7 +265,7 @@ def save_unique_topic(topic_list, lang_id, post_id, group_id):
     if topic in topic_in_db:
       pass
     else:
-      save_data.append(Topic(topic=topic, lang_id=lang_id, num_of_posts=add_num))
+      save_data.append(Topic(topic=topic, country_id=country_id, num_of_posts=add_num))
 
   # save new topics
   for data in save_data:
@@ -333,6 +337,8 @@ def count_vote(posts, user_info_id):
       posts[idx]["total_vote"] = total_vote
       posts[idx]["vote_period_end"] = vote_period_end
       posts[idx]["my_vote"] = get_my_vote(post_id, user_info_id)
+      posts[idx]["gender_distribution"] = get_gender_distribution(post_id)
+      posts[idx]["age_distribution"] = get_age_distribution(post_id)
       
     
     elif vote_type_id == 2:
@@ -562,7 +568,7 @@ class PostResource(Resource):
       if page > 20:
         return {}, 200
 
-    lang_id = get_lang_id(request.base_url)
+    country_id = get_country_id(request)
 
     """ 
     basically users can see the timeline without login 
@@ -661,7 +667,7 @@ class PostResource(Resource):
         else:
           yesterday_datetime = (datetime.now(timezone(timedelta(hours=0), 'UTC')) - timedelta(days=7)).isoformat()
         
-        posts = Post.query.filter(Post.lang_id == lang_id, Post.created_at > yesterday_datetime, Post.group_id==group_id, Post.parent_id==None).join(Post.vote_selects, isouter=True).join(Post.vote_mjs, isouter=True).join(Post.mj_options, isouter=True).order_by(Post.num_vote.desc()).distinct().paginate(page, per_page=config.POSTS_PER_PAGE).items
+        posts = Post.query.filter(Post.country_id == country_id, Post.created_at > yesterday_datetime, Post.group_id==group_id, Post.parent_id==None).join(Post.vote_selects, isouter=True).join(Post.vote_mjs, isouter=True).join(Post.mj_options, isouter=True).order_by(Post.num_vote.desc()).distinct().paginate(page, per_page=config.POSTS_PER_PAGE).items
         
         post_obj = posts_schema.dump(posts)
         count_vote_obj = count_vote(post_obj, user_info_id)
@@ -670,7 +676,7 @@ class PostResource(Resource):
 
 
       # if keyword == "recommend":
-      #     posts_by_topic = Post.query.filter_by(lang_id=lang_id, parent_id=None)
+      #     posts_by_topic = Post.query.filter_by(country_id=country_id, parent_id=None)
       #     .join(Post.vote_selects, isouter=True)
       #     .join(Post.vote_mjs, isouter=True)
       #     .join(Post.mj_options, isouter=True).
@@ -678,7 +684,7 @@ class PostResource(Resource):
       #     .join(UserInfoTopic, UserInfoTopic.topic_id, PostTopic.topic_id).filter_by(user_info_id=user_info_id)
       #     .order_by(Post.id.desc()).distinct().paginate(page, per_page=config.POSTS_PER_PAGE).items
 
-      #     # Post.query.filter_by(lang_id=lang_id, group_id=group_id, parent_id=None).join(Post.vote_selects, isouter=True).join(Post.vote_mjs, isouter=True).join(Post.mj_options, isouter=True).order_by(Post.id.desc()).distinct().paginate(page, per_page=config.POSTS_PER_PAGE).items
+      #     # Post.query.filter_by(country_id=country_id, group_id=group_id, parent_id=None).join(Post.vote_selects, isouter=True).join(Post.vote_mjs, isouter=True).join(Post.mj_options, isouter=True).order_by(Post.id.desc()).distinct().paginate(page, per_page=config.POSTS_PER_PAGE).items
           
       #     post_obj = posts_schema.dump(posts)
       #     count_vote_obj = count_vote(post_obj, user_info_id)
@@ -686,14 +692,14 @@ class PostResource(Resource):
 
       if keyword == "latest":
         status_code = 200
-        posts = Post.query.filter_by(lang_id=lang_id, group_id=group_id, parent_id=None).join(Post.vote_selects, isouter=True).join(Post.vote_mjs, isouter=True).join(Post.mj_options, isouter=True).order_by(Post.id.desc()).distinct().paginate(page, per_page=config.POSTS_PER_PAGE).items
+        posts = Post.query.filter_by(country_id=country_id, group_id=group_id, parent_id=None).join(Post.vote_selects, isouter=True).join(Post.vote_mjs, isouter=True).join(Post.mj_options, isouter=True).order_by(Post.id.desc()).distinct().paginate(page, per_page=config.POSTS_PER_PAGE).items
         
         post_obj = posts_schema.dump(posts)
         count_vote_obj = count_vote(post_obj, user_info_id)
         return count_vote_obj, status_code
 
       if keyword == "myposts":
-        posts = Post.query.distinct().filter_by(lang_id=lang_id, group_id=group_id, user_info_id=user_info_id, parent_id=None).join(Post.vote_selects, isouter=True).join(Post.vote_mjs, isouter=True).join(Post.mj_options, isouter=True).order_by(Post.id.desc()).paginate(page, per_page=config.POSTS_PER_PAGE).items
+        posts = Post.query.distinct().filter_by(country_id=country_id, group_id=group_id, user_info_id=user_info_id, parent_id=None).join(Post.vote_selects, isouter=True).join(Post.vote_mjs, isouter=True).join(Post.mj_options, isouter=True).order_by(Post.id.desc()).paginate(page, per_page=config.POSTS_PER_PAGE).items
         status_code = 200
         post_obj = posts_schema.dump(posts)
         count_vote_obj = count_vote(post_obj, user_info_id)
@@ -703,7 +709,7 @@ class PostResource(Resource):
         voted_post_list = UserInfoPostVoted.query.filter_by(user_info_id=user_info_id).all()
         voted_post_id_list = [obj.post_id for obj in voted_post_list]
 
-        posts = Post.query.distinct().filter(Post.lang_id==lang_id, Post.group_id==group_id, Post.id.in_(voted_post_id_list), Post.parent_id==None).join(Post.vote_selects, isouter=True).join(Post.vote_mjs, isouter=True).join(Post.mj_options, isouter=True).order_by(Post.id.desc()).paginate(page, per_page=config.POSTS_PER_PAGE).items
+        posts = Post.query.distinct().filter(Post.country_id==country_id, Post.group_id==group_id, Post.id.in_(voted_post_id_list), Post.parent_id==None).join(Post.vote_selects, isouter=True).join(Post.vote_mjs, isouter=True).join(Post.mj_options, isouter=True).order_by(Post.id.desc()).paginate(page, per_page=config.POSTS_PER_PAGE).items
         status_code = 200
         post_obj = posts_schema.dump(posts)
         count_vote_obj = count_vote(post_obj, user_info_id)
@@ -728,7 +734,7 @@ class PostResource(Resource):
           search = "#" + search
 
       page = int(request.args["page"])
-      posts = Post.query.filter(Post.lang_id==lang_id, Post.group_id==group_id, or_(Post.content.contains(search), Post.title.contains(search)), Post.parent_id==None).join(Post.vote_selects, isouter=True).join(Post.vote_mjs, isouter=True).join(Post.mj_options, isouter=True).order_by(Post.id.desc()).distinct().paginate(page, per_page=config.POSTS_PER_PAGE).items
+      posts = Post.query.filter(Post.country_id==country_id, Post.group_id==group_id, or_(Post.content.contains(search), Post.title.contains(search)), Post.parent_id==None).join(Post.vote_selects, isouter=True).join(Post.vote_mjs, isouter=True).join(Post.mj_options, isouter=True).order_by(Post.id.desc()).distinct().paginate(page, per_page=config.POSTS_PER_PAGE).items
       status_code = 200
       post_obj = posts_schema.dump(posts)
       count_vote_obj = count_vote(post_obj, user_info_id)
@@ -744,7 +750,7 @@ class PostResource(Resource):
       topic = request.args["topic"]
       page = int(request.args["page"])
       target_topics = Post.query.filter_by(group_id=group_id, parent_id=None).join(PostTopic).join(Topic).filter_by(topic=topic).distinct().paginate(page, per_page=config.POSTS_PER_PAGE).items
-      # posts = Post.query.filter(Post.lang_id==lang_id, or_(Post.content.contains(search), Post.title.contains(search))).join(Post.vote_selects, isouter=True).join(Post.vote_mjs, isouter=True).join(Post.mj_options, isouter=True).order_by(Post.id.desc()).distinct().paginate(page, per_page=config.POSTS_PER_PAGE).items
+      # posts = Post.query.filter(Post.country_id==country_id, or_(Post.content.contains(search), Post.title.contains(search))).join(Post.vote_selects, isouter=True).join(Post.vote_mjs, isouter=True).join(Post.mj_options, isouter=True).order_by(Post.id.desc()).distinct().paginate(page, per_page=config.POSTS_PER_PAGE).items
       status_code = 200
       post_obj = posts_schema.dump(target_topics)
       count_vote_obj = count_vote(post_obj, user_info_id)
@@ -753,7 +759,7 @@ class PostResource(Resource):
     """
     return default feed.
     """
-    posts = Post.query.filter_by(lang_id=lang_id, group_id=group_id, parent_id=None).join(Post.vote_selects, isouter=True).join(Post.vote_mjs, isouter=True).join(Post.mj_options, isouter=True).order_by(Post.id.desc()).distinct().paginate(page, per_page=config.POSTS_PER_PAGE).items
+    posts = Post.query.filter_by(country_id=country_id, group_id=group_id, parent_id=None).join(Post.vote_selects, isouter=True).join(Post.vote_mjs, isouter=True).join(Post.mj_options, isouter=True).order_by(Post.id.desc()).distinct().paginate(page, per_page=config.POSTS_PER_PAGE).items
     status_code = 200
     post_obj = posts_schema.dump(posts)
     count_vote_obj = count_vote(post_obj, user_info_id)
@@ -779,7 +785,7 @@ class PostResource(Resource):
     logger_api("request.json", str(request.json))
     data = request.get_json(force=True)
     logger_api("data", str(data))
-    lang_id = get_lang_id(request.base_url)
+    country_id = get_country_id(request)
     user_info_id = get_jwt_identity()
     vote_type_id = data["vote_type_id"]
     group_id = data["group_id"] if ("group_id" in data.keys() and data["group_id"]) else None
@@ -790,7 +796,7 @@ class PostResource(Resource):
     """
     if vote_type_id == "3":
       try:
-        handle_vote_type_3(data, lang_id, user_info_id, group_id)
+        handle_vote_type_3(data, country_id, user_info_id, group_id)
         db.session.commit()
         return {"message": "successfully created a post"}, 200
       except:
@@ -819,7 +825,7 @@ class PostResource(Resource):
       new_post = Post(
         user_info_id=user_info_id,
         title=title,
-        lang_id=lang_id,
+        country_id=country_id,
         content=content,
         end_at=end_at,
         vote_selects=vote_obj_list,
@@ -842,7 +848,7 @@ class PostResource(Resource):
         """
         save topics of the posts
         """
-        topic_ids = save_unique_topic(topic_list, lang_id, post_id, group_id)
+        topic_ids = save_unique_topic(topic_list, country_id, post_id, group_id)
 
         db.session.commit()
         status_code = 200
@@ -862,7 +868,7 @@ class PostResource(Resource):
         new_post = Post(
           user_info_id=user_info_id,
           title=title,
-          lang_id=lang_id,
+          country_id=country_id,
           content=content,
           end_at=end_at,
           vote_mjs=vote_obj_list,
@@ -882,13 +888,13 @@ class PostResource(Resource):
         update_num_of_posts(group_id, post_id)
 
         mj_option_list = request.json["mj_option_list"] #["良い", "やや良い", "普通", "やや悪い", "悪い"]
-        new_mj_option = [MjOption(post_id=post_id, lang_id=lang_id, content=cont) for cont in mj_option_list]
+        new_mj_option = [MjOption(post_id=post_id, country_id=country_id, content=cont) for cont in mj_option_list]
         db.session.bulk_save_objects(new_mj_option)
 
         """
         save topics of the posts
         """
-        topic_ids = save_unique_topic(topic_list, lang_id, post_id, group_id)
+        topic_ids = save_unique_topic(topic_list, country_id, post_id, group_id)
         db.session.commit()
         
         status_code = 200

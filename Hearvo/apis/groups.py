@@ -10,7 +10,7 @@ from datetime import datetime, timedelta, timezone
 import Hearvo.config as config
 from ..app import logger
 from ..models import db, User, UserGETSchema, UserInfo, UserInfoGETSchema,Group,UserInfoGroup, GroupSchema
-from Hearvo.middlewares.detect_language import get_lang_id
+from Hearvo.middlewares.detect_language import get_country_id
 from .logger_api import logger_api
 
 def create_link(user_info_id, group_name, created_at):
@@ -36,6 +36,7 @@ class GroupResource(Resource):
     get groups that the user has joined
     """
     user_info_id = get_jwt_identity()
+    country_id = get_country_id(request)
     link = request.args["link"] if "link" in request.args.keys() else None
     id = request.args["id"] if "id" in request.args.keys() else None
     order_by = request.args["order_by"] if "order_by" in request.args.keys() else None
@@ -44,7 +45,7 @@ class GroupResource(Resource):
     if id:
       try:
         data = Group.query.filter_by(id=id).first()
-        already_joined = UserInfoGroup.query.filter_by(user_info_id=user_info_id, group_id=data.id).first()
+        already_joined = UserInfoGroup.query.filter_by(user_info_id=user_info_id, group_id=data.id, country_id=country_id).first()
         result = group_info_schema.dump(data)
         result["already_joined"] = True if already_joined else False
         return result, 200
@@ -54,7 +55,7 @@ class GroupResource(Resource):
     # one group
     if link:
       try:
-        data = Group.query.filter_by(link=link).first()
+        data = Group.query.filter_by(link=link, country_id=country_id).first()
         already_joined = UserInfoGroup.query.filter_by(user_info_id=user_info_id, group_id=data.id).first()
         result = group_info_schema.dump(data)
         result["already_joined"] = True if already_joined else False
@@ -66,7 +67,7 @@ class GroupResource(Resource):
     try:
         data = UserInfoGroup.query.filter_by(user_info_id=user_info_id).all()
         all_group_id = [x.group_id for x in data]
-        fetched_groups = Group.query.filter(Group.id.in_(all_group_id)).order_by(Group.created_at.desc()).all()
+        fetched_groups = Group.query.filter(Group.id.in_(all_group_id), Group.country_id == country_id).order_by(Group.created_at.desc()).all()
         status_code = 200
         return groups_info_schema.dump(fetched_groups), status_code
     except:
@@ -82,6 +83,7 @@ class GroupResource(Resource):
     """
     title = request.json["title"]
     user_info_id = get_jwt_identity()
+    country_id = get_country_id(request)
     current_datetime=datetime.now(timezone(timedelta(hours=0), 'UTC')).isoformat()
 
     # max group number is 50
@@ -96,7 +98,8 @@ class GroupResource(Resource):
           title=title,
           link=link,
           created_at=current_datetime,
-          num_of_users=1
+          num_of_users=1,
+          country_id=country_id
         )
         db.session.add(new_group)
         db.session.flush()
@@ -127,9 +130,10 @@ class GroupUserInfoResource(Resource):
     """
     link = request.json["link"]
     user_info_id = get_jwt_identity()
+    country_id = get_country_id(request)
 
     # Check if the group exists
-    group_obj = Group.query.filter_by(link=link).first()
+    group_obj = Group.query.filter_by(link=link, country_id=country_id).first()
 
     if group_obj is None:
       status_code = 400
@@ -167,10 +171,11 @@ class GroupUserInfoResource(Resource):
     """
     link = request.json["link"]
     user_info_id = get_jwt_identity()
+    country_id = get_country_id(request)
     current_datetime=datetime.now(timezone(timedelta(hours=0), 'UTC')).isoformat()
 
     # Check if the group exists
-    group_obj = Group.query.filter_by(link=link).first()
+    group_obj = Group.query.filter_by(link=link, country_id=country_id).first()
     if group_obj is None:
       status_code = 400
       return {"message": "Failed to delete the user."}, status_code
