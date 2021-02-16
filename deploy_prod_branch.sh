@@ -1,7 +1,7 @@
 heroku login
 git add -A
 git commit -m "deploy"
-git push heroku stable:main
+git push heroku stable:main --force
 
 
 
