@@ -30,7 +30,7 @@ class Post(db.Model):
   updated_at = db.Column(db.DateTime, default=datetime.now(timezone(timedelta(hours=0), 'UTC')).isoformat(), onupdate=datetime.now(timezone(timedelta(hours=0), 'UTC')).isoformat())
 
   # Foreign Key
-  lang_id = db.Column(db.BigInteger, db.ForeignKey('lang.id'), nullable=False)
+  country_id = db.Column(db.BigInteger, db.ForeignKey('country.id'), nullable=True)
   vote_type_id = db.Column(db.BigInteger, db.ForeignKey('vote_type.id'), nullable=False)
   user_info_id = db.Column(db.BigInteger, db.ForeignKey('user_info.id'), nullable=False)
   group_id = db.Column(db.BigInteger, db.ForeignKey('group.id'), nullable=True)
@@ -54,6 +54,7 @@ class User(db.Model):
   __tablename__ = "user"
   
   id = db.Column(db.BigInteger, primary_key=True, nullable=False)
+  name = db.Column(db.String(100), unique=True)
   # string_id = db.Column(db.String(20), unique=True)
   # name = db.Column(db.String(100))
   # email = db.Column(db.String(350), unique=True)
@@ -93,6 +94,7 @@ class UserInfo(db.Model):
   description = db.Column(db.String(300))
   occupation = db.Column(db.String(100))
   gender = db.Column(db.BigInteger, primary_key=False) # 0 male, 1 female, 2 others
+  gender_detail = db.Column(db.String(20))
   age = db.Column(db.BigInteger)
   birthday = db.Column(db.DateTime)
   birth_year = db.Column(db.BigInteger)
@@ -102,7 +104,7 @@ class UserInfo(db.Model):
 
   # Foreign Key
   user_id = db.Column(db.BigInteger, db.ForeignKey('user.id'), nullable=False)
-  lang_id = db.Column(db.BigInteger, db.ForeignKey('lang.id'), nullable=False)
+  country_id = db.Column(db.BigInteger, db.ForeignKey('country.id'), nullable=True)
 
   # One to Many
   posts = db.relationship("Post", backref="user_info")
@@ -195,7 +197,7 @@ class MjOption(db.Model):
   content = db.Column(db.String(300))
 
   # Foreign Key
-  lang_id = db.Column(db.BigInteger, db.ForeignKey('lang.id'), nullable=False)
+  country_id = db.Column(db.BigInteger, db.ForeignKey('country.id'), nullable=True)
   post_id = db.Column(db.BigInteger, db.ForeignKey('post.id'), nullable=False)
   # vote_mj_id = db.Column(db.BigInteger, db.ForeignKey('vote_mj.id'), nullable=False)
 
@@ -272,10 +274,22 @@ class Lang(db.Model):
   __tablename__ = "lang"
 
   id = db.Column(db.BigInteger, primary_key=True, nullable=False)
-  language = db.Column(db.String(500), nullable=False)
+  language = db.Column(db.String(100), nullable=False)
 
   def __repr__(self):
       return ' Lang %s>' % self.language
+
+#########################################
+# Country
+#########################################
+class Country(db.Model):
+  __tablename__ = "country"
+
+  id = db.Column(db.BigInteger, primary_key=True, nullable=False)
+  country = db.Column(db.String(100), nullable=False)
+
+  def __repr__(self):
+      return ' Country <%s>' % self.country
 
 
 #########################################
@@ -332,7 +346,7 @@ class Topic(db.Model):
   num_of_users = db.Column(db.BigInteger, default=0)
 
   # Foreign Key
-  lang_id = db.Column(db.BigInteger, db.ForeignKey('lang.id'), nullable=False)
+  country_id = db.Column(db.BigInteger, db.ForeignKey('country.id'), nullable=True)
 
 #########################################
 # UserInfoTopic
@@ -379,6 +393,9 @@ class Group(db.Model):
   num_of_posts = db.Column(db.BigInteger, primary_key=False, default=0)
   created_at = db.Column(db.DateTime, default=datetime.now(timezone(timedelta(hours=0), 'UTC')).isoformat())
   updated_at = db.Column(db.DateTime, default=datetime.now(timezone(timedelta(hours=0), 'UTC')).isoformat(), onupdate=datetime.now(timezone(timedelta(hours=0), 'UTC')).isoformat())
+
+  # Foreign Key
+  country_id = db.Column(db.BigInteger, db.ForeignKey('country.id'), nullable=True)
   user_info_id = db.Column(db.BigInteger, db.ForeignKey('user_info.id'), nullable=False)
 
 #########################################

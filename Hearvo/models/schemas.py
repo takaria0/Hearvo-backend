@@ -138,12 +138,13 @@ class PostSchema(SQLAlchemyAutoSchema):
     include_relationships = True
     # exclude = ("user",)
 
-  vote_selects = Nested(VoteSelectSchema, many=True)
+  vote_selects = Nested(VoteSelectSchema(exclude=("users",)), many=True)
   vote_mjs = Nested(VoteMjSchema, many=True)
   topics = Nested(PostTopicSchema, many=True)
   mj_options = Nested(MjOptionSchema, many=True)
   user_info = Nested(UserInfoSchema(exclude=("vote_selects","posts","comments", "vote_select_user",)), many=False)
   vote_type = Nested(VoteTypeSchema(many=False))
+  
 
   # comments = Nested(CommentSchema(exclude=("user",)), many=True)
     # fields = ("id", "title", "start_at", "end_at", "content", "created_at", "updated_at")
