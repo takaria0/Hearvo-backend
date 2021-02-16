@@ -31,7 +31,7 @@ git commit -am "ahahha"
 git push heroku production:main
 
  
-# migration
+# migration (local)
 
 when you add a new column or table, try below before deploy
 
