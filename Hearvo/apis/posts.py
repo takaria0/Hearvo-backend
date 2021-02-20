@@ -12,7 +12,7 @@ from sqlalchemy import or_
 
 import Hearvo.config as config
 from ..app import logger, cache, limiter
-from ..models import db, Post, PostSchema, VoteSelect, VoteSelectUser, UserInfoPostVoted, UserInfo, VoteMj, MjOption, VoteMjUser, Topic, PostTopic, PostGroup, Group, UserInfoPostVotedSchema, UserInfoGroup
+from ..models import db, Post, PostSchema, VoteSelect, VoteSelectUser, UserInfoPostVoted, UserInfo, VoteMj, MjOption, VoteMjUser, Topic, PostTopic, PostGroup, Group, UserInfoPostVotedSchema, UserInfoGroup, UserInfoTopic
 
 from .logger_api import logger_api
 from Hearvo.middlewares.detect_language import get_country_id
@@ -293,6 +293,144 @@ def save_unique_topic(topic_list, country_id, post_id, group_id):
 
   return topic_ids
 
+
+def count_vote_ver2(posts, user_info_id, is_parent=False):
+  """
+  rewriting count_vote to optimize performance 
+  count votes of the post
+  rubbish code.
+
+  three conditions:
+  vote type 1
+  vote type 2
+  vote type 3
+  """
+  if type(posts) == dict:
+    posts = [posts]
+
+  for idx, post in enumerate(posts):
+    post_id = post["id"]
+    vote_type_id = post["vote_type"]["id"]
+
+    if vote_type_id == 1:
+      vote_selects_obj = post["vote_selects"]
+      vote_select_ids = [obj["id"] for obj in vote_selects_obj]
+
+      """
+      DB access
+      """
+      vote_select_user_obj = VoteSelectUser.query.filter(VoteSelectUser.vote_select_id.in_(vote_select_ids)).all()
+
+      count_obj = {obj.user_info_id: obj.vote_select_id for obj in vote_select_user_obj}
+      id_content_table = {obj["id"]: obj["content"] for obj in vote_selects_obj}
+
+      vote_selects_count = Counter(count_obj.values())
+      total_vote = sum(vote_selects_count.values())
+      data = dict(Counter(count_obj.values()))
+      vote_selects_count = [{"vote_select_id": id, "count": data[id], "content": id_content_table[id]} if id in data.keys() else {"vote_select_id": id, "count": 0, "content": id_content_table[id]} for id in vote_select_ids ]
+
+      """
+      DB access
+      """
+      already_voted = True if len(UserInfoPostVoted.query.filter_by(user_info_id=user_info_id, post_id=post_id).all()) > 0 else False
+
+      current_datetime = datetime.now(timezone(timedelta(hours=0), 'UTC'))
+      end_datetime = datetime.fromisoformat(post["end_at"])
+      end_datetime = end_datetime.replace(tzinfo=timezone(timedelta(hours=0), 'UTC'))
+
+      vote_period_end = True if current_datetime > end_datetime else False
+      
+      posts[idx]["vote_select_ids"] = vote_select_ids
+      posts[idx]["vote_selects_count"] = vote_selects_count
+      posts[idx]["already_voted"] = already_voted
+      posts[idx]["total_vote"] = total_vote
+      posts[idx]["vote_period_end"] = vote_period_end
+      posts[idx]["my_vote"] = get_my_vote(post_id, user_info_id)
+
+      """
+      add age and gender dist iff is_parent True
+      to improve performance
+      """
+      if is_parent:
+        posts[idx]["gender_distribution"] = get_gender_distribution(post_id)
+        posts[idx]["age_distribution"] = get_age_distribution(post_id)
+      
+    
+    elif vote_type_id == 2:
+      """
+      DB access
+      """
+      raw_mj_options = MjOption.query.filter_by(post_id=post_id).all()
+      mj_options = {obj.id: obj.content for obj in raw_mj_options}
+      # ADD USER FILTERING LATER
+
+      """
+      DB access
+      """
+      vote_mj_user_obj = VoteMjUser.query.filter_by(post_id=post_id).join(VoteMj, VoteMj.id==VoteMjUser.vote_mj_id).all() 
+      vote_mj_ids = list({obj.vote_mj_id for obj in vote_mj_user_obj})
+
+      """
+      DB access
+      """
+      vote_mj_obj = [{"vote_mj_id": obj.id, "content": obj.content} for obj in VoteMj.query.filter(VoteMj.id.in_(vote_mj_ids)).all()]
+      count_obj = [  {"vote_mj_id": mj_id, "mj_option_ids":[ obj.mj_option_id for obj in vote_mj_user_obj if mj_id==obj.vote_mj_id]} for mj_id in vote_mj_ids ]
+      total_vote = len(count_obj[0]["mj_option_ids"]) if len(count_obj) != 0 else 0
+      vote_mj_count = [{"count": [{"mj_option_id":key, "content":mj_options[key], "count": val} for key, val in dict(Counter(obj["mj_option_ids"])).items()], "vote_mj_id": obj["vote_mj_id"]}  for obj in count_obj]
+
+      """
+      DB access
+      """
+      already_voted = True if len(UserInfoPostVoted.query.filter_by(user_info_id=user_info_id, post_id=post_id).all()) > 0 else False
+
+      current_datetime = datetime.now(timezone(timedelta(hours=0), 'UTC'))
+      end_datetime = datetime.fromisoformat(post["end_at"])
+      end_datetime = end_datetime.replace(tzinfo=timezone(timedelta(hours=0), 'UTC'))
+
+      vote_period_end = True if current_datetime > end_datetime else False
+      
+      posts[idx]["vote_mj_ids"] = vote_mj_ids
+      posts[idx]["vote_mj_count"] = vote_mj_count
+      posts[idx]["vote_mj_obj"] = vote_mj_obj
+      posts[idx]["already_voted"] = already_voted
+      posts[idx]["total_vote"] = total_vote
+      posts[idx]["vote_period_end"] = vote_period_end
+      posts[idx]["my_vote"] = get_my_vote(post_id, user_info_id)
+
+    elif vote_type_id == 3:
+
+      """
+      DB access
+      """
+      total_vote = len(UserInfoPostVoted.query.filter_by(post_id=post_id).all())
+
+      """
+      DB access
+      """
+      user_info_post_voted_obj = UserInfoPostVoted.query.filter_by(user_info_id=user_info_id, post_id=post_id).all()
+      already_voted = True if len(user_info_post_voted_obj) > 0 else False
+
+      current_datetime = datetime.now(timezone(timedelta(hours=0), 'UTC'))
+      end_datetime = datetime.fromisoformat(post["end_at"])
+      end_datetime = end_datetime.replace(tzinfo=timezone(timedelta(hours=0), 'UTC'))
+      vote_period_end = True if current_datetime > end_datetime else False
+      children_posts = Post.query.filter_by(parent_id=post_id).all()
+
+      posts[idx]["already_voted"] = already_voted
+      posts[idx]["total_vote"] = total_vote
+      posts[idx]["vote_period_end"] = vote_period_end
+      posts[idx]["num_of_children"] = len(children_posts)
+
+  return posts
+
+
+
+
+
+
+
+
+
 def count_vote(posts, user_info_id):
   """
   count votes of the post
@@ -390,150 +528,150 @@ def count_vote(posts, user_info_id):
   return posts
 
 
-def count_vote_option(posts, user_info_id, options):
-  if type(posts) == dict:
-    posts = [posts]
+# def count_vote_option(posts, user_info_id, options):
+#   if type(posts) == dict:
+#     posts = [posts]
 
-  options = options_validate(options)
-  for idx, post in enumerate(posts):
-    post_id = post["id"]
-    vote_type_id = post["vote_type"]["id"]
+#   options = options_validate(options)
+#   for idx, post in enumerate(posts):
+#     post_id = post["id"]
+#     vote_type_id = post["vote_type"]["id"]
 
-    if vote_type_id == 1:
+#     if vote_type_id == 1:
       
-      post_obj = Post.query.filter_by(id=post_id).first()
-      vote_selects_obj = post_obj.vote_selects
+#       post_obj = Post.query.filter_by(id=post_id).first()
+#       vote_selects_obj = post_obj.vote_selects
 
-      vote_select_ids = [obj.id for obj in vote_selects_obj]
-      vote_select_user_obj = filter_vote_selects_options(options, user_info_id, vote_select_ids)
+#       vote_select_ids = [obj.id for obj in vote_selects_obj]
+#       vote_select_user_obj = filter_vote_selects_options(options, user_info_id, vote_select_ids)
       
-      count_obj = {obj.user_info_id: obj.vote_select_id for obj in vote_select_user_obj}
-      id_content_table = {obj.id: obj.content for obj in vote_selects_obj}
+#       count_obj = {obj.user_info_id: obj.vote_select_id for obj in vote_select_user_obj}
+#       id_content_table = {obj.id: obj.content for obj in vote_selects_obj}
 
-      vote_selects_count = Counter(count_obj.values())
-      total_vote = sum(vote_selects_count.values())
-      data = dict(Counter(count_obj.values()))
-      vote_selects_count = [{"vote_select_id": id, "count": data[id], "content": id_content_table[id]} if id in data.keys() else {"vote_select_id": id, "count": 0, "content": id_content_table[id]} for id in vote_select_ids ]
+#       vote_selects_count = Counter(count_obj.values())
+#       total_vote = sum(vote_selects_count.values())
+#       data = dict(Counter(count_obj.values()))
+#       vote_selects_count = [{"vote_select_id": id, "count": data[id], "content": id_content_table[id]} if id in data.keys() else {"vote_select_id": id, "count": 0, "content": id_content_table[id]} for id in vote_select_ids ]
 
-      already_voted = True if len(UserInfoPostVoted.query.filter_by(user_info_id=user_info_id, post_id=post_id).all()) > 0 else False
+#       already_voted = True if len(UserInfoPostVoted.query.filter_by(user_info_id=user_info_id, post_id=post_id).all()) > 0 else False
 
-      current_datetime = datetime.now(timezone(timedelta(hours=0), 'UTC'))
-      end_datetime = datetime.fromisoformat(post["end_at"])
-      end_datetime = end_datetime.replace(tzinfo=timezone(timedelta(hours=0), 'UTC'))
+#       current_datetime = datetime.now(timezone(timedelta(hours=0), 'UTC'))
+#       end_datetime = datetime.fromisoformat(post["end_at"])
+#       end_datetime = end_datetime.replace(tzinfo=timezone(timedelta(hours=0), 'UTC'))
 
-      vote_period_end = True if current_datetime > end_datetime else False
+#       vote_period_end = True if current_datetime > end_datetime else False
       
-      posts[idx]["vote_select_ids"] = vote_select_ids
-      posts[idx]["vote_selects_count"] = vote_selects_count
-      posts[idx]["already_voted"] = already_voted
-      posts[idx]["total_vote"] = total_vote
-      posts[idx]["vote_period_end"] = vote_period_end
-      posts[idx]["my_vote"] = get_my_vote(post_id, user_info_id)
+#       posts[idx]["vote_select_ids"] = vote_select_ids
+#       posts[idx]["vote_selects_count"] = vote_selects_count
+#       posts[idx]["already_voted"] = already_voted
+#       posts[idx]["total_vote"] = total_vote
+#       posts[idx]["vote_period_end"] = vote_period_end
+#       posts[idx]["my_vote"] = get_my_vote(post_id, user_info_id)
 
-    elif vote_type_id == 2:
-      raw_mj_options = MjOption.query.filter_by(post_id=post_id).all()
-      mj_options = {obj.id: obj.content for obj in raw_mj_options}
+#     elif vote_type_id == 2:
+#       raw_mj_options = MjOption.query.filter_by(post_id=post_id).all()
+#       mj_options = {obj.id: obj.content for obj in raw_mj_options}
 
-      vote_mj_user_obj = filter_vote_mjs_options(options, user_info_id, post_id)
-      vote_mj_ids = list({obj.vote_mj_id for obj in vote_mj_user_obj})
+#       vote_mj_user_obj = filter_vote_mjs_options(options, user_info_id, post_id)
+#       vote_mj_ids = list({obj.vote_mj_id for obj in vote_mj_user_obj})
 
-      vote_mj_obj = [{"vote_mj_id": obj.id, "content": obj.content} for obj in VoteMj.query.filter(VoteMj.id.in_(vote_mj_ids)).all()]
-      count_obj = [  {"vote_mj_id": mj_id, "mj_option_ids":[ obj.mj_option_id for obj in vote_mj_user_obj if mj_id==obj.vote_mj_id]} for mj_id in vote_mj_ids ]
-      total_vote = len(count_obj[0]["mj_option_ids"]) if len(count_obj) != 0 else 0
-      vote_mj_count = [{"count": [{"mj_option_id":key, "content":mj_options[key], "count": val} for key, val in dict(Counter(obj["mj_option_ids"])).items()], "vote_mj_id": obj["vote_mj_id"]}  for obj in count_obj]
+#       vote_mj_obj = [{"vote_mj_id": obj.id, "content": obj.content} for obj in VoteMj.query.filter(VoteMj.id.in_(vote_mj_ids)).all()]
+#       count_obj = [  {"vote_mj_id": mj_id, "mj_option_ids":[ obj.mj_option_id for obj in vote_mj_user_obj if mj_id==obj.vote_mj_id]} for mj_id in vote_mj_ids ]
+#       total_vote = len(count_obj[0]["mj_option_ids"]) if len(count_obj) != 0 else 0
+#       vote_mj_count = [{"count": [{"mj_option_id":key, "content":mj_options[key], "count": val} for key, val in dict(Counter(obj["mj_option_ids"])).items()], "vote_mj_id": obj["vote_mj_id"]}  for obj in count_obj]
 
-      already_voted = True if len(UserInfoPostVoted.query.filter_by(user_info_id=user_info_id, post_id=post_id).all()) > 0 else False
+#       already_voted = True if len(UserInfoPostVoted.query.filter_by(user_info_id=user_info_id, post_id=post_id).all()) > 0 else False
 
-      current_datetime = datetime.now(timezone(timedelta(hours=0), 'UTC'))
-      end_datetime = datetime.fromisoformat(post["end_at"])
-      end_datetime = end_datetime.replace(tzinfo=timezone(timedelta(hours=0), 'UTC'))
+#       current_datetime = datetime.now(timezone(timedelta(hours=0), 'UTC'))
+#       end_datetime = datetime.fromisoformat(post["end_at"])
+#       end_datetime = end_datetime.replace(tzinfo=timezone(timedelta(hours=0), 'UTC'))
 
-      vote_period_end = True if current_datetime > end_datetime else False
+#       vote_period_end = True if current_datetime > end_datetime else False
       
-      posts[idx]["vote_mj_ids"] = vote_mj_ids
-      posts[idx]["vote_mj_count"] = vote_mj_count
-      posts[idx]["vote_mj_obj"] = vote_mj_obj
-      posts[idx]["already_voted"] = already_voted
-      posts[idx]["total_vote"] = total_vote
-      posts[idx]["vote_period_end"] = vote_period_end
-      posts[idx]["my_vote"] = get_my_vote(post_id, user_info_id)
+#       posts[idx]["vote_mj_ids"] = vote_mj_ids
+#       posts[idx]["vote_mj_count"] = vote_mj_count
+#       posts[idx]["vote_mj_obj"] = vote_mj_obj
+#       posts[idx]["already_voted"] = already_voted
+#       posts[idx]["total_vote"] = total_vote
+#       posts[idx]["vote_period_end"] = vote_period_end
+#       posts[idx]["my_vote"] = get_my_vote(post_id, user_info_id)
 
-  return posts
-
-
-def string_check(content):
-  if (len(content.replace(" ", "")) == 0):
-    return False
-  else:
-    return True
+#   return posts
 
 
-def options_validate(options):
+# def string_check(content):
+#   if (len(content.replace(" ", "")) == 0):
+#     return False
+#   else:
+#     return True
+
+
+# def options_validate(options):
   
-  def age_to_year(age):
-    current_year = datetime.now(timezone(timedelta(hours=0), 'UTC')).year
-    return current_year - age
+#   def age_to_year(age):
+#     current_year = datetime.now(timezone(timedelta(hours=0), 'UTC')).year
+#     return current_year - age
 
-  if "gender" in options.keys():
-    gender = options["gender"] if string_check(options["gender"]) else None
-  else:
-    gender = None
+#   if "gender" in options.keys():
+#     gender = options["gender"] if string_check(options["gender"]) else None
+#   else:
+#     gender = None
 
-  if "min_age" in options.keys():
-    max_birth_year = age_to_year(int(options["min_age"])) if string_check(options["min_age"]) else 0
-  else:
-    max_birth_year = 0
+#   if "min_age" in options.keys():
+#     max_birth_year = age_to_year(int(options["min_age"])) if string_check(options["min_age"]) else 0
+#   else:
+#     max_birth_year = 0
 
-  if "max_age" in options.keys():
-    min_birth_year = age_to_year(int(options["max_age"])) if string_check(options["max_age"]) else 3000
-  else:
-    min_birth_year = 3000
+#   if "max_age" in options.keys():
+#     min_birth_year = age_to_year(int(options["max_age"])) if string_check(options["max_age"]) else 3000
+#   else:
+#     min_birth_year = 3000
 
-  if "occupation" in options.keys():
-    occupation = options["occupation"] if string_check(options["occupation"]) else None
-  else:
-    occupation = None
+#   if "occupation" in options.keys():
+#     occupation = options["occupation"] if string_check(options["occupation"]) else None
+#   else:
+#     occupation = None
 
   
-  return {"gender": gender, "min_birth_year": min_birth_year, "max_birth_year": max_birth_year, "occupation": occupation}
+#   return {"gender": gender, "min_birth_year": min_birth_year, "max_birth_year": max_birth_year, "occupation": occupation}
 
 
 
-def filter_vote_selects_options(options, user_info_id, vote_select_ids):
-  gender = options["gender"]
-  min_birth_year = options["min_birth_year"]
-  max_birth_year = options["max_birth_year"]
-  occupation = options["occupation"]
+# def filter_vote_selects_options(options, user_info_id, vote_select_ids):
+#   gender = options["gender"]
+#   min_birth_year = options["min_birth_year"]
+#   max_birth_year = options["max_birth_year"]
+#   occupation = options["occupation"]
 
-  logger_api(options, 'options')
+#   logger_api(options, 'options')
 
-  if gender == None:
-    vote_select_user_obj = VoteSelectUser.query.filter(VoteSelectUser.vote_select_id.in_(vote_select_ids)).join(UserInfo, UserInfo.id==VoteSelectUser.user_info_id).filter(UserInfo.occupation==occupation, UserInfo.birth_year >= min_birth_year, UserInfo.birth_year <= max_birth_year, ).all()
+#   if gender == None:
+#     vote_select_user_obj = VoteSelectUser.query.filter(VoteSelectUser.vote_select_id.in_(vote_select_ids)).join(UserInfo, UserInfo.id==VoteSelectUser.user_info_id).filter(UserInfo.occupation==occupation, UserInfo.birth_year >= min_birth_year, UserInfo.birth_year <= max_birth_year, ).all()
 
-  elif occupation == None:
-    vote_select_user_obj = VoteSelectUser.query.filter(VoteSelectUser.vote_select_id.in_(vote_select_ids)).join(UserInfo, UserInfo.id==VoteSelectUser.user_info_id).filter(UserInfo.gender==gender, UserInfo.birth_year >= min_birth_year, UserInfo.birth_year <= max_birth_year, ).all()
+#   elif occupation == None:
+#     vote_select_user_obj = VoteSelectUser.query.filter(VoteSelectUser.vote_select_id.in_(vote_select_ids)).join(UserInfo, UserInfo.id==VoteSelectUser.user_info_id).filter(UserInfo.gender==gender, UserInfo.birth_year >= min_birth_year, UserInfo.birth_year <= max_birth_year, ).all()
 
-  else:
-    vote_select_user_obj = VoteSelectUser.query.filter(VoteSelectUser.vote_select_id.in_(vote_select_ids)).join(UserInfo, UserInfo.id==VoteSelectUser.user_info_id).filter(UserInfo.occupation==occupation, UserInfo.gender==gender, UserInfo.birth_year >= min_birth_year, UserInfo.birth_year <= max_birth_year, ).all()
+#   else:
+#     vote_select_user_obj = VoteSelectUser.query.filter(VoteSelectUser.vote_select_id.in_(vote_select_ids)).join(UserInfo, UserInfo.id==VoteSelectUser.user_info_id).filter(UserInfo.occupation==occupation, UserInfo.gender==gender, UserInfo.birth_year >= min_birth_year, UserInfo.birth_year <= max_birth_year, ).all()
 
-  return vote_select_user_obj
+#   return vote_select_user_obj
 
-def filter_vote_mjs_options(options, user_info_id, post_id):
-  gender = options["gender"]
-  min_birth_year = options["min_birth_year"]
-  max_birth_year = options["max_birth_year"]
-  occupation = options["occupation"]
+# def filter_vote_mjs_options(options, user_info_id, post_id):
+#   gender = options["gender"]
+#   min_birth_year = options["min_birth_year"]
+#   max_birth_year = options["max_birth_year"]
+#   occupation = options["occupation"]
   
-  if gender == None:
-    vote_mj_user_obj = VoteMjUser.query.filter_by(post_id=post_id).join(UserInfo, UserInfo.id==VoteMjUser.user_info_id).filter(UserInfo.occupation==occupation, UserInfo.age >= min_birth_year, UserInfo.birth_year <= max_birth_year, ).all()
+#   if gender == None:
+#     vote_mj_user_obj = VoteMjUser.query.filter_by(post_id=post_id).join(UserInfo, UserInfo.id==VoteMjUser.user_info_id).filter(UserInfo.occupation==occupation, UserInfo.age >= min_birth_year, UserInfo.birth_year <= max_birth_year, ).all()
 
-  elif occupation == None:
-    vote_mj_user_obj = VoteMjUser.query.filter_by(post_id=post_id).join(UserInfo, UserInfo.id==VoteMjUser.user_info_id).filter(UserInfo.gender==gender, UserInfo.birth_year >= min_birth_year, UserInfo.birth_year <= max_birth_year, ).all()
+#   elif occupation == None:
+#     vote_mj_user_obj = VoteMjUser.query.filter_by(post_id=post_id).join(UserInfo, UserInfo.id==VoteMjUser.user_info_id).filter(UserInfo.gender==gender, UserInfo.birth_year >= min_birth_year, UserInfo.birth_year <= max_birth_year, ).all()
 
-  else:
-    vote_mj_user_obj = VoteMjUser.query.filter_by(post_id=post_id).join(UserInfo, UserInfo.id==VoteMjUser.user_info_id).filter(UserInfo.occupation==occupation, UserInfo.gender==gender, UserInfo.birth_year >= min_birth_year, UserInfo.birth_year <= max_birth_year, ).all()
+#   else:
+#     vote_mj_user_obj = VoteMjUser.query.filter_by(post_id=post_id).join(UserInfo, UserInfo.id==VoteMjUser.user_info_id).filter(UserInfo.occupation==occupation, UserInfo.gender==gender, UserInfo.birth_year >= min_birth_year, UserInfo.birth_year <= max_birth_year, ).all()
 
-  return vote_mj_user_obj
+#   return vote_mj_user_obj
 
 
 #########################################
@@ -555,10 +693,12 @@ class PostResource(Resource):
 
     page: page of the feed
     id: post id
-    keyword: query keyword e.g. "popular" "latest" "myposts" "voted"
-    do_filter: do filtering or not. yes or no
+    keyword: query keyword e.g. "popular" "latest" "myposts" "voted" "recommend"
     time: get post by the time, "now" "today" "week" "month"
     group_id: id of the group posts belong to 
+
+    DEPRECATED
+    do_filter: do filtering or not. yes or no
     """
     logger_api("request.base_url", request.base_url)
 
@@ -589,7 +729,7 @@ class PostResource(Resource):
         parent_id = request.args["parent_id"]
         posts = Post.query.filter_by(parent_id=parent_id).all()
         post_obj = posts_schema.dump(posts)
-        count_vote_obj = count_vote(post_obj, user_info_id)
+        count_vote_obj = count_vote_ver2(post_obj, user_info_id, is_parent=True)
         return count_vote_obj, 200
       except:
         return {}, 400
@@ -615,30 +755,31 @@ class PostResource(Resource):
      rubbish code. need to update
     """
     if "id" in request.args.keys():
-      do_filter = request.args["do_filter"] if "do_filter" in request.args.keys() else "no"
+      # do_filter = request.args["do_filter"] if "do_filter" in request.args.keys() else "no"
 
-      if do_filter == "yes":
-        logger_api("do_filter", request.args)
-        options = request.args
-        id = request.args["id"]
-        post = Post.query.filter_by(id=id, parent_id=None).join(Post.vote_selects, isouter=True).join(Post.vote_mjs, isouter=True).join(Post.mj_options, isouter=True).first()
-        status_code = 200
-        post_obj = post_schema.dump(post)
-        count_vote_obj = count_vote_option(post_obj, user_info_id, options)[0]
-        count_vote_obj["gender_distribution"] = get_gender_distribution(id)
-        count_vote_obj["age_distribution"] = get_age_distribution(id)
-        count_vote_obj["my_vote"] = get_my_vote(id, user_info_id)
-        return count_vote_obj, status_code
-      else:
-        id = request.args["id"]
-        post = Post.query.filter_by(id=id, parent_id=None).join(Post.vote_selects, isouter=True).join(Post.vote_mjs, isouter=True).join(Post.mj_options, isouter=True).first()
-        status_code = 200
-        post_obj = post_schema.dump(post)
-        count_vote_obj = count_vote(post_obj, user_info_id)[0]
-        count_vote_obj["gender_distribution"] = get_gender_distribution(id)
-        count_vote_obj["age_distribution"] = get_age_distribution(id)
-        count_vote_obj["my_vote"] = get_my_vote(id, user_info_id)
-        return count_vote_obj, status_code
+      id = request.args["id"]
+      post = Post.query.filter_by(id=id, parent_id=None).join(Post.vote_selects, isouter=True).join(Post.vote_mjs, isouter=True).join(Post.mj_options, isouter=True).first()
+      status_code = 200
+      post_obj = post_schema.dump(post)
+      count_vote_obj = count_vote_ver2(post_obj, user_info_id)[0]
+      count_vote_obj["gender_distribution"] = get_gender_distribution(id)
+      count_vote_obj["age_distribution"] = get_age_distribution(id)
+      count_vote_obj["my_vote"] = get_my_vote(id, user_info_id)
+      return count_vote_obj, status_code
+
+      # if do_filter == "yes":
+      #   logger_api("do_filter", request.args)
+      #   options = request.args
+      #   id = request.args["id"]
+      #   post = Post.query.filter_by(id=id, parent_id=None).join(Post.vote_selects, isouter=True).join(Post.vote_mjs, isouter=True).join(Post.mj_options, isouter=True).first()
+      #   status_code = 200
+      #   post_obj = post_schema.dump(post)
+      #   count_vote_obj = count_vote_option(post_obj, user_info_id, options)[0]
+      #   count_vote_obj["gender_distribution"] = get_gender_distribution(id)
+      #   count_vote_obj["age_distribution"] = get_age_distribution(id)
+      #   count_vote_obj["my_vote"] = get_my_vote(id, user_info_id)
+      #   return count_vote_obj, status_code
+
 
     """
     return posts based on the keyword (rubbish code.)
@@ -648,6 +789,7 @@ class PostResource(Resource):
     latest: return latest feed
     myposts: return user's own feed
     voted: return user's voted feed
+    recommend: return user's individual feed (show only following topics)
     """
     if "keyword" in request.args.keys() and "page" in request.args.keys():
       keyword = request.args["keyword"]
@@ -669,52 +811,77 @@ class PostResource(Resource):
         else:
           yesterday_datetime = (datetime.now(timezone(timedelta(hours=0), 'UTC')) - timedelta(days=7)).isoformat()
         
-        posts = Post.query.filter(Post.country_id == country_id, Post.created_at > yesterday_datetime, Post.group_id==group_id, Post.parent_id==None).join(Post.vote_selects, isouter=True).join(Post.vote_mjs, isouter=True).join(Post.mj_options, isouter=True).order_by(Post.num_vote.desc()).distinct().paginate(page, per_page=config.POSTS_PER_PAGE).items
+        posts = Post.query \
+        .filter(Post.country_id == country_id, Post.created_at > yesterday_datetime, Post.group_id==group_id, Post.parent_id==None) \
+        .join(Post.vote_selects, isouter=True) \
+        .join(Post.vote_mjs, isouter=True) \
+        .join(Post.mj_options, isouter=True) \
+        .order_by(Post.num_vote.desc()).distinct() \
+        .paginate(page, per_page=config.POSTS_PER_PAGE).items
         
         post_obj = posts_schema.dump(posts)
-        count_vote_obj = count_vote(post_obj, user_info_id)
+        count_vote_obj = count_vote_ver2(post_obj, user_info_id)
         
         return count_vote_obj, status_code
 
 
-      # if keyword == "recommend":
-      #     posts_by_topic = Post.query.filter_by(country_id=country_id, parent_id=None)
-      #     .join(Post.vote_selects, isouter=True)
-      #     .join(Post.vote_mjs, isouter=True)
-      #     .join(Post.mj_options, isouter=True).
-      #     .join(PostTopic, PostTopic.id == Post.id)
-      #     .join(UserInfoTopic, UserInfoTopic.topic_id, PostTopic.topic_id).filter_by(user_info_id=user_info_id)
-      #     .order_by(Post.id.desc()).distinct().paginate(page, per_page=config.POSTS_PER_PAGE).items
-
-      #     # Post.query.filter_by(country_id=country_id, group_id=group_id, parent_id=None).join(Post.vote_selects, isouter=True).join(Post.vote_mjs, isouter=True).join(Post.mj_options, isouter=True).order_by(Post.id.desc()).distinct().paginate(page, per_page=config.POSTS_PER_PAGE).items
-          
-      #     post_obj = posts_schema.dump(posts)
-      #     count_vote_obj = count_vote(post_obj, user_info_id)
-      #   return
+      if keyword == "recommend":
+        """
+        get all posts that has topics which the user has followed 
+        """
+        posts_by_topic = Post.query.filter_by(country_id=country_id, parent_id=None) \
+        .join(Post.vote_selects, isouter=True) \
+        .join(Post.vote_mjs, isouter=True) \
+        .join(Post.mj_options, isouter=True) \
+        .join(PostTopic, PostTopic.id == Post.id, isouter=True) \
+        .join(UserInfoTopic, UserInfoTopic.topic_id == PostTopic.topic_id, isouter=True) \
+        .filter(UserInfoTopic.user_info_id == user_info_id) \
+        .order_by(Post.id.desc()).distinct().paginate(page, per_page=config.POSTS_PER_PAGE).items
+        
+        post_obj = posts_schema.dump(posts_by_topic)
+        count_vote_obj = count_vote_ver2(post_obj, user_info_id)
+        return count_vote_obj, 200
 
       if keyword == "latest":
         status_code = 200
-        posts = Post.query.filter_by(country_id=country_id, group_id=group_id, parent_id=None).join(Post.vote_selects, isouter=True).join(Post.vote_mjs, isouter=True).join(Post.mj_options, isouter=True).order_by(Post.id.desc()).distinct().paginate(page, per_page=config.POSTS_PER_PAGE).items
+        posts = Post.query \
+        .filter_by(country_id=country_id, group_id=group_id, parent_id=None) \
+        .join(Post.vote_selects, isouter=True).join(Post.vote_mjs, isouter=True) \
+        .join(Post.mj_options, isouter=True) \
+        .order_by(Post.id.desc()).distinct() \
+        .paginate(page, per_page=config.POSTS_PER_PAGE).items
         
         post_obj = posts_schema.dump(posts)
-        count_vote_obj = count_vote(post_obj, user_info_id)
+        count_vote_obj = count_vote_ver2(post_obj, user_info_id)
         return count_vote_obj, status_code
 
       if keyword == "myposts":
-        posts = Post.query.distinct().filter_by(country_id=country_id, group_id=group_id, user_info_id=user_info_id, parent_id=None).join(Post.vote_selects, isouter=True).join(Post.vote_mjs, isouter=True).join(Post.mj_options, isouter=True).order_by(Post.id.desc()).paginate(page, per_page=config.POSTS_PER_PAGE).items
+        posts = Post.query.distinct() \
+        .filter_by(country_id=country_id, group_id=group_id, user_info_id=user_info_id, parent_id=None) \
+        .join(Post.vote_selects, isouter=True) \
+        .join(Post.vote_mjs, isouter=True) \
+        .join(Post.mj_options, isouter=True) \
+        .order_by(Post.id.desc()).paginate(page, per_page=config.POSTS_PER_PAGE).items
+
         status_code = 200
         post_obj = posts_schema.dump(posts)
-        count_vote_obj = count_vote(post_obj, user_info_id)
+        count_vote_obj = count_vote_ver2(post_obj, user_info_id)
         return count_vote_obj, status_code
 
       if keyword == "voted":
         voted_post_list = UserInfoPostVoted.query.filter_by(user_info_id=user_info_id).all()
         voted_post_id_list = [obj.post_id for obj in voted_post_list]
 
-        posts = Post.query.distinct().filter(Post.country_id==country_id, Post.group_id==group_id, Post.id.in_(voted_post_id_list), Post.parent_id==None).join(Post.vote_selects, isouter=True).join(Post.vote_mjs, isouter=True).join(Post.mj_options, isouter=True).order_by(Post.id.desc()).paginate(page, per_page=config.POSTS_PER_PAGE).items
+        posts = Post.query.distinct() \
+        .filter(Post.country_id==country_id, Post.group_id==group_id, Post.id.in_(voted_post_id_list), Post.parent_id==None) \
+        .join(Post.vote_selects, isouter=True) \
+        .join(Post.vote_mjs, isouter=True) \
+        .join(Post.mj_options, isouter=True) \
+        .order_by(Post.id.desc()).paginate(page, per_page=config.POSTS_PER_PAGE).items
+
         status_code = 200
         post_obj = posts_schema.dump(posts)
-        count_vote_obj = count_vote(post_obj, user_info_id)
+        count_vote_obj = count_vote_ver2(post_obj, user_info_id)
         return count_vote_obj, status_code
 
       """
@@ -739,7 +906,7 @@ class PostResource(Resource):
       posts = Post.query.filter(Post.country_id==country_id, Post.group_id==group_id, or_(Post.content.contains(search), Post.title.contains(search)), Post.parent_id==None).join(Post.vote_selects, isouter=True).join(Post.vote_mjs, isouter=True).join(Post.mj_options, isouter=True).order_by(Post.id.desc()).distinct().paginate(page, per_page=config.POSTS_PER_PAGE).items
       status_code = 200
       post_obj = posts_schema.dump(posts)
-      count_vote_obj = count_vote(post_obj, user_info_id)
+      count_vote_obj = count_vote_ver2(post_obj, user_info_id)
       return count_vote_obj, status_code
 
 
@@ -751,11 +918,31 @@ class PostResource(Resource):
     if "topic" in request.args.keys() and "page" in request.args.keys():
       topic = request.args["topic"]
       page = int(request.args["page"])
-      target_topics = Post.query.filter_by(group_id=group_id, parent_id=None, country_id=country_id).join(PostTopic).join(Topic).filter_by(topic=topic).distinct().paginate(page, per_page=config.POSTS_PER_PAGE).items
-      # posts = Post.query.filter(Post.country_id==country_id, or_(Post.content.contains(search), Post.title.contains(search))).join(Post.vote_selects, isouter=True).join(Post.vote_mjs, isouter=True).join(Post.mj_options, isouter=True).order_by(Post.id.desc()).distinct().paginate(page, per_page=config.POSTS_PER_PAGE).items
+      order_by = request.args["order_by"] if "order_by" in request.args.keys() else ""
+
+      # order by
+      if order_by == "popular":
+        """ This month """
+        yesterday_datetime = (datetime.now(timezone(timedelta(hours=0), 'UTC')) - timedelta(days=30)).isoformat() 
+        target_topics = Post.query \
+        .filter(Post.group_id==group_id, Post.parent_id==None, Post.country_id==country_id, Post.created_at > yesterday_datetime) \
+        .join(PostTopic) \
+        .join(Topic) \
+        .filter_by(topic=topic) \
+        .order_by(Post.num_vote.desc()).distinct()  \
+        .paginate(page, per_page=config.POSTS_PER_PAGE).items
+      else:
+        target_topics = Post.query \
+        .filter_by(group_id=group_id, parent_id=None, country_id=country_id) \
+        .join(PostTopic) \
+        .join(Topic) \
+        .filter_by(topic=topic) \
+        .order_by(Post.id.desc()).distinct()  \
+        .paginate(page, per_page=config.POSTS_PER_PAGE).items
+
       status_code = 200
       post_obj = posts_schema.dump(target_topics)
-      count_vote_obj = count_vote(post_obj, user_info_id)
+      count_vote_obj = count_vote_ver2(post_obj, user_info_id)
       return count_vote_obj, status_code
 
     """
@@ -764,7 +951,7 @@ class PostResource(Resource):
     posts = Post.query.filter_by(country_id=country_id, group_id=group_id, parent_id=None).join(Post.vote_selects, isouter=True).join(Post.vote_mjs, isouter=True).join(Post.mj_options, isouter=True).order_by(Post.id.desc()).distinct().paginate(page, per_page=config.POSTS_PER_PAGE).items
     status_code = 200
     post_obj = posts_schema.dump(posts)
-    count_vote_obj = count_vote(post_obj, user_info_id)
+    count_vote_obj = count_vote_ver2(post_obj, user_info_id)
     return count_vote_obj, status_code
 
 

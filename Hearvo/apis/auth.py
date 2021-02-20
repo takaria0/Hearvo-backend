@@ -8,6 +8,7 @@ from flask_jwt_extended import (
     get_jwt_identity
 )
 import bcrypt
+import re 
 
 import Hearvo.config as config
 from ..app import logger
@@ -28,22 +29,33 @@ class SignupResource(Resource):
 
   def post(self):
     country_id = get_country_id(request)
-    user_name = request.json["user_name"].lower()
+    user_name = request.json["user_name"]
     email = request.json["email"].lower()
     password = request.json["password"]
+
+
+    """
+    Validate UserName, Email, Password
+    """
+    pattern = "^[A-Za-z0-9_-]*$" # Only contains alphabet, numbers, underscore, and dash
+    if (len(user_name) > 20) or (not bool(re.match(pattern, user_name))):
+      return {"message": "Invalid username"}, 400
+
+    if (len(email)) > 350:
+      return {"message": "Invalid email address"}, 400
+
+    if (len(password) < 8) or (" " in password) or ("　" in password):
+      return {"message": "Invalid password"}, 400
+
 
     check_email = User.query.filter_by(email=email).first()
     check_user_name = User.query.filter_by(name=user_name).first()
 
     if (check_email is not None):
-      res_obj =  {"message": "このメールアドレスは既に使われています"}
-      status_code = 400
-      return res_obj, status_code
+      return {"message": "このメールアドレスは既に使われています"}, 400
 
     if (check_user_name is not None):
-      res_obj =  {"message": "このユーザーネームは既に使われています"}
-      status_code = 400
-      return res_obj, status_code
+      return {"message": "このユーザーネームは既に使われています"}, 400
         
     # generate hashed password using bcrypt.
     # for more info, look for the doc of bcrypt
@@ -156,7 +168,6 @@ class LogoutResource(Resource):
     
 
     
-
 
 
 
