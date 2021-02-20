@@ -392,16 +392,27 @@ def get_second_result(first_result, second_target):
       vote_select_obj_list =  VoteSelect.query.filter_by(post_id=post_id).join(VoteSelectUser, VoteSelectUser.post_id == VoteSelect.post_id, isouter=True).filter(VoteSelectUser.user_info_id.in_(user_info_id_list)).all()
 
       append_content = {"content": first_content}
+
       """
-      if you insert the same content, this won't work.
+      if vote was 0
       """
-      for vote_select_obj in vote_select_obj_list:
-        content = vote_select_obj.content
-        users = vote_select_obj.users
-        users = user_info_schemas.dump(users) # filtering
-        users = [user for user in users if user["id"] in user_info_id_list]
-        append_content[content] = len(users) # here, the same content cannot save in the same place
-        # append_content[f'debug_{content}'] = user_info_schemas.dump(users)
+      if len(vote_select_obj_list) == 0:
+        vote_select_obj_list = VoteSelect.query.filter_by(post_id=post_id).all()
+        for vote_select_obj in vote_select_obj_list:
+          content = vote_select_obj.content
+          append_content[content] = 0
+
+      else:
+        """
+        if you insert the same content, this won't work.
+        """
+        for vote_select_obj in vote_select_obj_list:
+          content = vote_select_obj.content
+          users = vote_select_obj.users
+          users = user_info_schemas.dump(users) # filtering
+          users = [user for user in users if user["id"] in user_info_id_list]
+          append_content[content] = len(users) # here, the same content cannot save in the same place
+          # append_content[f'debug_{content}'] = user_info_schemas.dump(users)
 
       result.append(append_content)
 
