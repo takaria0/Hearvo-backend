@@ -68,15 +68,6 @@ class UserInfoPostVotedSchema(SQLAlchemyAutoSchema):
   user_info = Nested(UserInfoSchema(exclude=("vote_selects","posts","comments","vote_select_user", )), many=True)
 
 
-class VoteSelectSchema(SQLAlchemyAutoSchema):
-  class Meta:
-    model = VoteSelect
-    include_relationships = True
-    exclude = ("created_at", "updated_at",)
-
-  users = Nested(UserInfoSchema(exclude=("vote_selects","posts","comments","vote_select_user", )), many=True)
-
-
 class VoteSelectUserSchema(SQLAlchemyAutoSchema):
   class Meta:
     model = VoteSelectUser
@@ -85,6 +76,15 @@ class VoteSelectUserSchema(SQLAlchemyAutoSchema):
 
   user_info = Nested(UserInfoSchema(exclude=("vote_selects","posts","comments","vote_select_user", )), many=False)
 
+
+class VoteSelectSchema(SQLAlchemyAutoSchema):
+  class Meta:
+    model = VoteSelect
+    include_relationships = True
+    exclude = ("created_at", "updated_at",)
+
+  users = Nested(UserInfoSchema(exclude=("vote_selects","posts","comments","vote_select_user", )), many=True)
+  vote_select_users = Nested(VoteSelectUserSchema(many=True))
 
 
 class VoteMjSchema(SQLAlchemyAutoSchema):

@@ -61,9 +61,7 @@ class CommentResource(Resource):
       user_info_id = None
 
     if len(request.args) == 0:
-      comments = Comment.query.all()
-      status_code = 200
-      return comments_schema.dump(comments), status_code
+      return {}, 200
 
     elif "post_id" in request.args.keys():
       logger_api("request.args", str(request.args))
@@ -72,11 +70,11 @@ class CommentResource(Resource):
 
       # order by
       if order_by == "popular":
-        comments = Comment.query.filter_by(post_id=post_id).join(CommentFav, and_(Comment.id == CommentFav.comment_id,  CommentFav.user_info_id == user_info_id), isouter=True).order_by(Comment.num_of_good.desc()).all()
+        comments = Comment.query.filter_by(post_id=post_id).join(CommentFav, and_(Comment.id == CommentFav.comment_id,  CommentFav.user_info_id == user_info_id), isouter=True).order_by(Comment.num_of_good.desc()).limit(100).all()
       elif order_by == "latest":
-        comments = Comment.query.filter_by(post_id=post_id).join(CommentFav, and_(Comment.id == CommentFav.comment_id, CommentFav.user_info_id == user_info_id), isouter=True).order_by(Comment.created_at.desc()).all()
+        comments = Comment.query.filter_by(post_id=post_id).join(CommentFav, and_(Comment.id == CommentFav.comment_id, CommentFav.user_info_id == user_info_id), isouter=True).order_by(Comment.created_at.desc()).limit(100).all()
       else:
-        comments = Comment.query.filter_by(post_id=post_id).join(CommentFav, and_(Comment.id == CommentFav.comment_id, CommentFav.user_info_id == user_info_id), isouter=True).order_by(Comment.created_at.desc()).all()
+        comments = Comment.query.filter_by(post_id=post_id).join(CommentFav, and_(Comment.id == CommentFav.comment_id, CommentFav.user_info_id == user_info_id), isouter=True).order_by(Comment.created_at.desc()).limit(100).all()
 
       status_code = 200
       return comments_schema.dump(comments), status_code
