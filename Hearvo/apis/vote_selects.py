@@ -400,7 +400,13 @@ def get_second_result(first_result, second_target):
         vote_select_obj_list = VoteSelect.query.filter_by(post_id=post_id).all()
         for vote_select_obj in vote_select_obj_list:
           content = vote_select_obj.content
-          append_content[content] = 0
+          """ only number string cause error in nivo bar charts. so add underscore to it """
+          try:
+            int_content = int(content)
+            content = str(content) + "_" 
+          except:
+            pass
+          append_content[str(content)] = 0
 
       else:
         """
@@ -521,4 +527,4 @@ class VoteSelectCompareResource(Resource):
     second_result = get_second_result(first_result, second_target)
 
 
-    return { "result" : second_result}, 200
+    return { "result" : second_result }, 200
