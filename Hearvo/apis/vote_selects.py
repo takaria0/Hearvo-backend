@@ -411,8 +411,12 @@ def get_second_result(first_result, second_target):
           users = vote_select_obj.users
           users = user_info_schemas.dump(users) # filtering
           users = [user for user in users if user["id"] in user_info_id_list]
-          if (type(content) == int) or (type(content) == float):
-            content = str(content) + "_"
+          """ only number string cause error in nivo bar charts. so add underscore to it """
+          try:
+            int_content = int(content)
+            content = str(content) + "_" 
+          except:
+            pass
           append_content[str(content)] = len(users) # here, the same content cannot save in the same place
           # append_content[f'debug_{content}'] = user_info_schemas.dump(users)
 
