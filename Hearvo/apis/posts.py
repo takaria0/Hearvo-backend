@@ -829,16 +829,27 @@ class PostResource(Resource):
         """
         get all posts that has topics which the user has followed 
         """
-        posts_by_topic = Post.query.filter_by(country_id=country_id, parent_id=None) \
-        .join(Post.vote_selects, isouter=True) \
-        .join(Post.vote_mjs, isouter=True) \
-        .join(Post.mj_options, isouter=True) \
-        .join(PostTopic, PostTopic.id == Post.id, isouter=True) \
-        .join(UserInfoTopic, UserInfoTopic.topic_id == PostTopic.topic_id, isouter=True) \
-        .filter(UserInfoTopic.user_info_id == user_info_id) \
-        .order_by(Post.id.desc()).distinct().paginate(page, per_page=config.POSTS_PER_PAGE).items
-        
-        post_obj = posts_schema.dump(posts_by_topic)
+        if user_info_id is None:
+          yesterday_datetime = (datetime.now(timezone(timedelta(hours=0), 'UTC')) - timedelta(days=7)).isoformat()
+          posts = Post.query \
+          .filter(Post.country_id == country_id, Post.created_at > yesterday_datetime, Post.group_id==group_id, Post.parent_id==None) \
+          .join(Post.vote_selects, isouter=True) \
+          .join(Post.vote_mjs, isouter=True) \
+          .join(Post.mj_options, isouter=True) \
+          .order_by(Post.num_vote.desc()).distinct() \
+          .paginate(page, per_page=config.POSTS_PER_PAGE).items
+          
+        else:
+          posts = Post.query.filter_by(country_id=country_id, parent_id=None) \
+          .join(Post.vote_selects, isouter=True) \
+          .join(Post.vote_mjs, isouter=True) \
+          .join(Post.mj_options, isouter=True) \
+          .join(PostTopic, PostTopic.id == Post.id, isouter=True) \
+          .join(UserInfoTopic, UserInfoTopic.topic_id == PostTopic.topic_id, isouter=True) \
+          .filter(UserInfoTopic.user_info_id == user_info_id) \
+          .order_by(Post.id.desc()).distinct().paginate(page, per_page=config.POSTS_PER_PAGE).items
+          
+        post_obj = posts_schema.dump(posts)
         count_vote_obj = count_vote_ver2(post_obj, user_info_id)
         return count_vote_obj, 200
 
