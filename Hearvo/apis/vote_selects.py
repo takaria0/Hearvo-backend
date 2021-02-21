@@ -481,7 +481,7 @@ def get_second_result(first_result, second_target):
 
 class VoteSelectCompareResource(Resource):
 
-  @jwt_required
+  # @jwt_required
   def post(self):
     """
     input 
@@ -504,7 +504,6 @@ class VoteSelectCompareResource(Resource):
     """
     logger_api("request.json", request.json)
 
-    user_info_id = get_jwt_identity()
     parent_id = request.json["parent_id"]
     first_target = request.json["first_target"]
     second_target = request.json["second_target"]
