@@ -253,6 +253,13 @@ def gender_num_to_text(gender, lang):
 
   return
 
+def slice_content_length(content):
+  content = str(content)
+  if len(content) > 12:
+    content = content[0:12] + "...";
+  
+  return content
+
 
 def get_first_result(first_target, parent_id):
   """
@@ -286,6 +293,8 @@ def get_first_result(first_target, parent_id):
 
     for vote_select_obj in vote_select_obj_list:
       content = vote_select_obj.content
+      content = slice_content_length(content)
+
       users = user_info_schemas.dump(vote_select_obj.users)
       user_info_id_list = [user["id"] for user in users]
       result.append({"content": content, "user_info_id_list": user_info_id_list})
@@ -406,7 +415,8 @@ def get_second_result(first_result, second_target):
             content = str(content) + "_" 
           except:
             pass
-          append_content[str(content)] = 0
+          content = slice_content_length(content)
+          append_content[content] = 0
 
       else:
         """
@@ -423,7 +433,8 @@ def get_second_result(first_result, second_target):
             content = str(content) + "_" 
           except:
             pass
-          append_content[str(content)] = len(users) # here, the same content cannot save in the same place
+          content = slice_content_length(content)
+          append_content[content] = len(users) # here, the same content cannot save in the same place
           # append_content[f'debug_{content}'] = user_info_schemas.dump(users)
 
       result.append(append_content)
