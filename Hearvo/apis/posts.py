@@ -12,7 +12,7 @@ from sqlalchemy import or_
 
 import Hearvo.config as config
 from ..app import logger, cache, limiter
-from ..models import db, Post, PostSchema, VoteSelect, VoteSelectUser, UserInfoPostVoted, UserInfo, VoteMj, MjOption, VoteMjUser, Topic, PostTopic, PostGroup, Group, UserInfoPostVotedSchema, UserInfoGroup, UserInfoTopic
+from ..models import db, Post, PostSchema, VoteSelect, VoteSelectUser, UserInfoPostVoted, UserInfo, VoteMj, MjOption, VoteMjUser, Topic, PostTopic, PostGroup, Group, UserInfoPostVotedSchema, UserInfoGroup, UserInfoTopic, TopicSchema
 
 from .logger_api import logger_api
 from Hearvo.middlewares.detect_language import get_country_id
@@ -920,6 +920,37 @@ class PostResource(Resource):
       count_vote_obj = count_vote_ver2(post_obj, user_info_id)
       return count_vote_obj, status_code
 
+    """
+    return related posts of post_id = XX
+
+    e.g. related_post_id = 10
+    """
+    if "related_post_id" in request.args.keys():
+      related_post_id = request.args["related_post_id"]
+
+      related_topic_list = Topic.query.join(PostTopic).filter_by(post_id=related_post_id).all()
+      topic_id_list = [topic_obj.id for topic_obj in related_topic_list]
+      related_topic_names = [topic_obj.topic for topic_obj in related_topic_list]
+
+      posts = Post.query \
+      .filter(Post.id != related_post_id, Post.country_id==country_id, Post.group_id==group_id, Post.parent_id==None) \
+      .join(PostTopic) \
+      .join(Topic) \
+      .filter(Topic.id.in_(topic_id_list)) \
+      .order_by(Post.id.desc()) \
+      .distinct() \
+      .limit(8) \
+      .all()
+
+      # .join(Post.vote_selects, isouter=True) \
+      # .join(Post.vote_mjs, isouter=True) \
+      # .join(Post.mj_options, isouter=True) \
+
+      post_obj = posts_schema.dump(posts)
+      count_vote_obj = count_vote_ver2(post_obj, user_info_id)
+      return {"posts":count_vote_obj, "related_topics": related_topic_names}, 200
+
+
 
     """
     return topic feed
@@ -931,6 +962,8 @@ class PostResource(Resource):
       page = int(request.args["page"])
       order_by = request.args["order_by"] if "order_by" in request.args.keys() else ""
 
+      topic_obj = Topic.query.filter_by(topic=topic, country_id=country_id).first()
+      topic_schema = TopicSchema()
       # order by
       if order_by == "popular":
         """ This month """
@@ -954,7 +987,7 @@ class PostResource(Resource):
       status_code = 200
       post_obj = posts_schema.dump(target_topics)
       count_vote_obj = count_vote_ver2(post_obj, user_info_id)
-      return count_vote_obj, status_code
+      return { "posts": count_vote_obj, "topic": topic_schema.dump(topic_obj) }, status_code
 
     """
     return default feed.
