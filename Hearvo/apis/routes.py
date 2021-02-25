@@ -13,6 +13,7 @@ from .vote_mjs import VoteMjResource, VoteMjUserResource, CountVoteMjResource
 from .comments import CommentResource, CommentFavResource
 from .groups import GroupResource, GroupUserInfoResource
 from .topics import UserInfoTopicResource, TopicResource
+from .reports import ReportResource
 
 PRE = config.URL_PREFIX
 
@@ -45,6 +46,8 @@ api.add_resource(GroupResource, f'/{PRE}/groups')
 api.add_resource(GroupUserInfoResource, f'/{PRE}/groups/users')
 api.add_resource(TopicResource, f'/{PRE}/topics')
 api.add_resource(UserInfoTopicResource, f'/{PRE}/topics/users')
+api.add_resource(ReportResource, f'/{PRE}/reports')
+
 
 
 

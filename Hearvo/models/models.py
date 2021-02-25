@@ -426,3 +426,39 @@ class UserInfoGroup(db.Model):
   # Foreign Key
   user_info_id = db.Column(db.BigInteger, db.ForeignKey('user_info.id'), nullable=False)
   group_id = db.Column(db.BigInteger, db.ForeignKey('group.id'), nullable=False)
+
+#########################################
+# Report
+#########################################
+class Report(db.Model):
+  __tablename__ = "report"
+  
+  id = db.Column(db.BigInteger, primary_key=True, nullable=False)
+  created_at = db.Column(db.DateTime, default=datetime.now(timezone(timedelta(hours=0), 'UTC')).isoformat())
+  updated_at = db.Column(db.DateTime, default=datetime.now(timezone(timedelta(hours=0), 'UTC')).isoformat(), onupdate=datetime.now(timezone(timedelta(hours=0), 'UTC')).isoformat())
+
+  # Foreign Key
+  user_info_id = db.Column(db.BigInteger, db.ForeignKey('user_info.id'), nullable=False)
+  post_id = db.Column(db.BigInteger, db.ForeignKey('post.id'), nullable=True)
+  comment_id = db.Column(db.BigInteger, db.ForeignKey('comment.id'), nullable=True)
+  # One to Many
+  
+
+  # Many to Many
+  
+
+
+#########################################
+# ReportReason
+#########################################
+class ReportReason(db.Model):
+  __tablename__ = "report_reason"
+  
+  id = db.Column(db.BigInteger, primary_key=True, nullable=False)
+  report_id = db.Column(db.BigInteger,db.ForeignKey('report.id'))
+  reason = db.Column(db.Integer)
+  reason_detail = db.Column(db.String(300),nullable=True)
+
+
+
+  
