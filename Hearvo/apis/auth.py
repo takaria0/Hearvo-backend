@@ -1,5 +1,8 @@
 import os
 from datetime import datetime, timedelta, timezone
+import re
+import random
+import string
 
 from flask import request, Response, abort, jsonify, Blueprint
 from flask_restful import Resource
@@ -8,7 +11,9 @@ from flask_jwt_extended import (
     get_jwt_identity
 )
 import bcrypt
-import re 
+from google.oauth2 import id_token
+from google.auth.transport import requests as g_requests
+
 
 import Hearvo.config as config
 from ..app import logger
@@ -103,6 +108,110 @@ class LoginResource(Resource):
 
   def post(self):
     country_id = get_country_id(request)
+
+    """
+    handles google login
+    veryfiy the tokenId and look for the user by google_id
+
+    if this is the first login, save google id, generate random user name and save user, user_info record. then return access token
+
+    if this is the first login in another country, create a new user info record and return access token
+
+    else, just simply return access token
+    """
+    if "google_login" in request.args.keys():
+      token = request.headers["googleTokenId"]
+      g_request = g_requests.Request()
+      id_info = id_token.verify_oauth2_token(
+          token, g_request, os.environ.get("GOOGLE_OAUTH_CLIENT_ID"))
+
+      if id_info['iss'] != 'accounts.google.com':
+          raise ValueError('Wrong issuer.')
+
+      google_id = id_info['sub']
+
+      current_user = User.query.filter_by(google_id=google_id).first()
+
+      if current_user is None:  
+        """
+        genereate random user name
+        at most three time to avoid duplicate 
+        """
+        count = 0
+        for idx in range(3):
+          lower_string = string.ascii_lowercase
+          digits = string.digits
+          generated_user_name = ''.join(random.choice(lower_string) for i in range(8)) + ''.join(random.choice(digits) for i in range(5))
+
+          is_unique = User.query.filter_by(name=generated_user_name).first()
+
+          if is_unique is None:
+            break
+          else:
+            count += 1
+            pass
+        
+        if count > 2:
+          return {}, 400
+        
+        new_user = User(
+          name=generated_user_name,
+          google_id=google_id,
+          created_at=datetime.now(timezone(timedelta(hours=0), 'UTC')).isoformat()
+        )
+
+        db.session.add(new_user)
+        db.session.flush()
+
+        new_user_info = UserInfo(
+          name=generated_user_name,
+          profile_name=generated_user_name,
+          user_id=new_user.id,
+          country_id=country_id,
+          created_at=datetime.now(timezone(timedelta(hours=0), 'UTC')).isoformat()
+        )
+
+        db.session.add(new_user_info)
+        db.session.flush()
+        db.session.commit()
+        expires = timedelta(days=60)
+        access_token = create_access_token(identity=str(new_user_info.id), expires_delta=expires)
+        return {"token": access_token}, 200
+
+      else:
+        user_info_obj = UserInfo.query.filter_by(
+          user_id=current_user.id,
+          country_id=country_id
+        ).first()
+
+        """
+        login other countries
+        create another user info obj using the same user name
+        """
+        if user_info_obj is None:
+          another_country_user_info = UserInfo(
+            user_id=current_user.id,
+            country_id=country_id,
+            name=current_user.name,
+            profile_name=current_user.name,
+            created_at=datetime.now(timezone(timedelta(hours=0), 'UTC')).isoformat(),
+            login_count=1
+            )
+          db.session.add(another_country_user_info)
+          db.session.flush()
+          user_info_id = another_country_user_info.id
+
+        else:
+          user_info_obj.login_count = user_info_obj.login_count + 1
+          db.session.add(user_info_obj)
+          user_info_id = user_info_obj.id
+
+        db.session.commit()
+        expires = timedelta(days=60)
+        access_token = create_access_token(identity=str(user_info_id), expires_delta=expires)
+        return {"token": access_token}, 200
+
+
     email = request.json["email"].lower()
     password = request.json["password"]
 
@@ -144,7 +253,7 @@ class LoginResource(Resource):
         user_info_id = user_info_obj.id
 
       db.session.commit()
-      expires = timedelta(days=30)
+      expires = timedelta(days=60)
       access_token = create_access_token(identity=str(user_info_id), expires_delta=expires)
       return {"token": access_token}, 200
 

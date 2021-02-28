@@ -18,6 +18,7 @@ services:
       ENVIRONMENT: "dev"
       DEBUG: "True"
       SECRET_KEY: aaaabbbbcccc
+      GOOGLE_OAUTH_CLIENT_ID: 984877314328-2kvinv2q3o9bgstfjherl42t7gf1rc05.apps.googleusercontent.com
       POSTGRES_USER: user
       POSTGRES_PASSWORD: password
       POSTGRES_HOST: db_postgres

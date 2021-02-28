@@ -6,8 +6,8 @@
 from Hearvo.models import Country, db, VoteType
 db.create_all()
 
-country_1 = Country(language="jp")
-country_2 = Country(language="us")
+country_1 = Country(country="jp")
+country_2 = Country(country="us")
 
 db.session.add(country_1)
 db.session.add(country_2)

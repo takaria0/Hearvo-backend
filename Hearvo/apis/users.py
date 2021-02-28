@@ -82,6 +82,25 @@ class UserResource(Resource):
         status_code = 400
         return {}, status_code
 
+    elif "edit_profile" in request.args.keys():
+      profile_name = request.json["profile_name"]
+
+      # UPDATE USER
+      user_info_obj.profile_name = profile_name
+
+      try:
+        db.session.add(user_info_obj)
+        db.session.commit()
+        status_code = 200
+        return user_info_schema.dump(user_info_obj), status_code
+        
+      except:
+        db.session.rollback()
+        status_code = 400
+        return {}, status_code
+      return {}, 200
+
+
     else:
       gender = request.json["gender"]
       birth_year = request.json["birth_year"]
@@ -119,7 +138,7 @@ class UserResource(Resource):
         # UPDATE EMAIL TO NULL, NAME TO <deleted>
         user.deleted_email = user.email
         user.email = None
-        user_info.name = DELETED_USER_NAME_MAP[country_id]
+        user_info.name = DELETED_USER_NAME_MAP[country_id] if country_id in DELETED_USER_NAME_MAP.keys() else "<Deleted>"
 
         db.session.add(user)
         db.session.add(user_info)
