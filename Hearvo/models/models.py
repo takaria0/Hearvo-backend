@@ -54,6 +54,7 @@ class User(db.Model):
   __tablename__ = "user"
   
   id = db.Column(db.BigInteger, primary_key=True, nullable=False)
+  google_id = db.Column(db.String(32), unique=True, nullable=True)
   name = db.Column(db.String(100), unique=True)
   # string_id = db.Column(db.String(20), unique=True)
   # name = db.Column(db.String(100))
@@ -64,7 +65,7 @@ class User(db.Model):
   # age = db.Column(db.BigInteger)
   # birthday = db.Column(db.DateTime)
   email = db.Column(db.String(350), unique=True)
-  deleted_email = db.Column(db.String(350), unique=True)
+  deleted_email = db.Column(db.String(350), unique=False)
   hashed_password = db.Column(db.String(150), nullable=False)
   created_at = db.Column(db.DateTime, default=datetime.now(timezone(timedelta(hours=0), 'UTC')).isoformat())
   updated_at = db.Column(db.DateTime, default=datetime.now(timezone(timedelta(hours=0), 'UTC')).isoformat(), onupdate=datetime.now(timezone(timedelta(hours=0), 'UTC')).isoformat())
