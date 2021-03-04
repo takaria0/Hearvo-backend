@@ -28,11 +28,8 @@ users_info_schema = UserInfoGETSchema(many=True)
 #########################################
 class UserResource(Resource):
   @jwt_required
-  def get(self, optional=True):
+  def get(self):
     user_info_id = get_jwt_identity()
-
-    if user_info_id is None:
-      return {}, 200
 
     if "profile_detail" in request.args.keys():
       following_topics = UserInfoTopic.query.filter_by(user_info_id=user_info_id).all()
