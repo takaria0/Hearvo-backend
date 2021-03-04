@@ -93,7 +93,7 @@ class TopicResource(Resource):
       if len(startswith_word) == 0:
         return [], 200
 
-      topics = Topic.query.filter(Topic.topic.startswith(startswith_word), Topic.country_id==country_id).order_by(Topic.num_of_posts.desc()).limit(20).all()
+      topics = Topic.query.filter(Topic.topic.startswith(startswith_word), Topic.country_id==country_id).order_by(Topic.num_of_posts.desc()).limit(10).all()
       result = topics_schema.dump(topics)
       return result, 200
 
