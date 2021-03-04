@@ -26,6 +26,7 @@ class Post(db.Model):
   num_vote = db.Column(db.BigInteger, default=0)
   start_at = db.Column(db.DateTime, default=datetime.now(timezone(timedelta(hours=0), 'UTC')).isoformat())
   end_at = db.Column(db.DateTime, default=None)
+  is_deleted = db.Column(db.Boolean, default=False)
   created_at = db.Column(db.DateTime, default=datetime.now(timezone(timedelta(hours=0), 'UTC')).isoformat())
   updated_at = db.Column(db.DateTime, default=datetime.now(timezone(timedelta(hours=0), 'UTC')).isoformat(), onupdate=datetime.now(timezone(timedelta(hours=0), 'UTC')).isoformat())
 
@@ -66,7 +67,7 @@ class User(db.Model):
   # birthday = db.Column(db.DateTime)
   email = db.Column(db.String(350), unique=True)
   deleted_email = db.Column(db.String(350), unique=False)
-  hashed_password = db.Column(db.String(150), nullable=False)
+  hashed_password = db.Column(db.String(150), nullable=True)
   created_at = db.Column(db.DateTime, default=datetime.now(timezone(timedelta(hours=0), 'UTC')).isoformat())
   updated_at = db.Column(db.DateTime, default=datetime.now(timezone(timedelta(hours=0), 'UTC')).isoformat(), onupdate=datetime.now(timezone(timedelta(hours=0), 'UTC')).isoformat())
 

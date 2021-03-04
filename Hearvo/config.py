@@ -39,7 +39,7 @@ if setting == "dev":
 
 elif setting == "prod":
   # ALLOW_ORIGIN_FRONT = os.environ["ALLOW_ORIGIN_FRONT"]
-  ALLOW_ORIGIN_LIST = ["https://jp.hearvo.com", "https://us.hearvo.com"] # add later to enable cors access fron 
+  ALLOW_ORIGIN_LIST = ["https://hearvo.com", "https://jp.hearvo.com", "https://us.hearvo.com"] # add later to enable cors access fron 
 
   APP_PORT = int(os.environ.get('PORT', 8080))
   DEBUG_SETTING = False
