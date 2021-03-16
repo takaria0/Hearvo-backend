@@ -26,32 +26,33 @@ class VoteSelectResource(Resource):
 
   @jwt_required
   def get(self):
-    vote_selects = VoteSelect.query.all()
-    return vote_selects_schema.dump(vote_selects)
+    # vote_selects = VoteSelect.query.all()
+    # return vote_selects_schema.dump(vote_selects)
+    return {}, 200
 
-  @jwt_required
-  def post(self):
-    new_vote_select = VoteSelect(
-      post_id=request.json["post_id"],
-      content=request.json['content'],
-      created_at=datetime.now(timezone(timedelta(hours=0), 'UTC')).isoformat()
-    )
+  # @jwt_required
+  # def post(self):
+  #   new_vote_select = VoteSelect(
+  #     post_id=request.json["post_id"],
+  #     content=request.json['content'],
+  #     created_at=datetime.now(timezone(timedelta(hours=0), 'UTC')).isoformat()
+  #   )
 
-    try:
-      db.session.add(new_vote_select)
-      db.session.commit()
-      res_obj = {"message": "created"}
-      status_code = 200
-    except:
-      db.session.rollback()
-      res_obj = {"message": "created"}
-      status_code = 400
-    finally:
-      pass
-      # db.session.close()
+  #   try:
+  #     db.session.add(new_vote_select)
+  #     db.session.commit()
+  #     res_obj = {"message": "created"}
+  #     status_code = 200
+  #   except:
+  #     db.session.rollback()
+  #     res_obj = {"message": "created"}
+  #     status_code = 400
+  #   finally:
+  #     pass
+  #     # db.session.close()
 
 
-    return res_obj, status_code
+  #   return res_obj, status_code
 
 class CountVoteSelectResource(Resource):
 
@@ -59,11 +60,17 @@ class CountVoteSelectResource(Resource):
   def post(self):
     logger_api("request.json", str(request.json))
     post_id = request.json["post_id"]
-    post_obj = Post.query.filter_by(id=post_id).first()
-    vote_selects_obj = post_obj.vote_selects
+
+    post_obj = Post.query.filter_by(id=post_id).first() # DB access
+    vote_selects_obj = post_obj.vote_selects # lazy loading
 
     vote_select_ids = [obj.id for obj in vote_selects_obj]
+
+    """
+    Below code may be super inefficient
+    """
     vote_select_user_obj = VoteSelectUser.query.filter(VoteSelectUser.vote_select_id.in_(vote_select_ids)).all()
+
     count_obj = {obj.user_info_id: obj.vote_select_id for obj in vote_select_user_obj}
     id_content_table = {obj.id: obj.content for obj in vote_selects_obj}
 
@@ -136,6 +143,7 @@ class VoteSelectUserResource(Resource):
       user_info_id=user_info_id,
       post_id=post_id,
       vote_type_id=1,
+      created_at=datetime.now(timezone(timedelta(hours=0), 'UTC')).isoformat()
     )
 
     check_obj = VoteSelectUser.query.filter_by(post_id=post_id, user_info_id=user_info_id).all()
@@ -199,7 +207,8 @@ class MultipleVoteUsersResource(Resource):
         VoteSelectUser(
           vote_select_id=each["vote_select_id"],
           user_info_id=user_info_id,
-          post_id=each["post_id"]
+          post_id=each["post_id"],
+          created_at=datetime.now(timezone(timedelta(hours=0), 'UTC')).isoformat()
         )
       )
       user_info_post_voted_list.append(
@@ -207,6 +216,7 @@ class MultipleVoteUsersResource(Resource):
           user_info_id=user_info_id,
           post_id=each["post_id"],
           vote_type_id=1, # important
+          created_at=datetime.now(timezone(timedelta(hours=0), 'UTC')).isoformat()
         )
       )
 
@@ -222,6 +232,8 @@ class MultipleVoteUsersResource(Resource):
         user_info_id=user_info_id,
         post_id=parent_id,
         vote_type_id=3, # important
+        created_at=datetime.now(
+            timezone(timedelta(hours=0), 'UTC')).isoformat()
       )
     )
 
@@ -295,7 +307,7 @@ def get_first_result(first_target, parent_id):
       content = vote_select_obj.content
       content = slice_content_length(content)
 
-      users = user_info_schemas.dump(vote_select_obj.users)
+      users = user_info_schemas.dump(vote_select_obj.users) # lazy loading
       user_info_id_list = [user["id"] for user in users]
       result.append({"content": content, "user_info_id_list": user_info_id_list})
     

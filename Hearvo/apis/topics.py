@@ -160,9 +160,6 @@ class UserInfoTopicResource(Resource):
     """
     if "topic_word" in request.args.keys():
       try:
-        """
-        get popular topics in the last 24 hours
-        """
         topic_word = request.args["topic_word"]
         topic_obj = Topic.query.filter_by(topic=topic_word, country_id=country_id).first()
         has_followed = UserInfoTopic.query.filter_by(user_info_id=user_info_id).join(Topic,Topic.id == UserInfoTopic.topic_id).filter_by(topic=topic_word).first()
@@ -177,6 +174,11 @@ class UserInfoTopicResource(Resource):
       except:
         return {"following": False, "topic_id": None}, 400
 
+    """
+    return user's following topics (currently up to 100)
+    
+    TODO: add pagination
+    """
     try:
       topic_list = Topic.query.join(UserInfoTopic, Topic.id == UserInfoTopic.topic_id).filter(UserInfoTopic.user_info_id == user_info_id, Topic.country_id==country_id).limit(100).all()
       result = topics_schema.dump(topic_list)

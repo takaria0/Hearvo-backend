@@ -69,6 +69,7 @@ class CommentResource(Resource):
       post_id = request.args["post_id"]
 
       # order by
+      # TODO: add pagination
       if order_by == "popular":
         comments = Comment.query.filter_by(post_id=post_id).join(CommentFav, and_(Comment.id == CommentFav.comment_id,  CommentFav.user_info_id == user_info_id), isouter=True).order_by(Comment.num_of_good.desc()).limit(100).all()
       elif order_by == "latest":

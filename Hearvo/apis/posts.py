@@ -119,7 +119,8 @@ def handle_vote_type_3(data, country_id, user_info_id, group_id):
   """ save the children """
   children_data_all = []
   for each in data["children"]:
-    vote_obj_list = [VoteSelect(content=ea["content"]) for ea in each["vote_obj"]] # not working. have to add after children insert
+    vote_obj_list = [VoteSelect(content=ea["content"]) for ea in each["vote_obj"]]
+     # not working. have to add after children insert
     children_data = Post(
           parent_id=parent_id,
           user_info_id=user_info_id,
