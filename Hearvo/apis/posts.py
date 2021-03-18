@@ -320,15 +320,19 @@ def count_vote_ver2(posts, user_info_id, is_parent=False):
       """
       DB access
       """
-      vote_select_user_obj = VoteSelectUser.query.filter(VoteSelectUser.vote_select_id.in_(vote_select_ids)).all()
+      # vote_select_user_obj = VoteSelectUser.query.filter(VoteSelectUser.vote_select_id.in_(vote_select_ids)).all()
 
-      count_obj = {obj.user_info_id: obj.vote_select_id for obj in vote_select_user_obj}
-      id_content_table = {obj["id"]: obj["content"] for obj in vote_selects_obj}
+      # count_obj = {obj.user_info_id: obj.vote_select_id for obj in vote_select_user_obj}
+      # id_content_table = {obj["id"]: obj["content"] for obj in vote_selects_obj}
 
-      vote_selects_count = Counter(count_obj.values())
-      total_vote = sum(vote_selects_count.values())
-      data = dict(Counter(count_obj.values()))
-      vote_selects_count = [{"vote_select_id": id, "count": data[id], "content": id_content_table[id]} if id in data.keys() else {"vote_select_id": id, "count": 0, "content": id_content_table[id]} for id in vote_select_ids ]
+      # vote_selects_count = Counter(count_obj.values())
+      # total_vote = sum(vote_selects_count.values())
+      # data = dict(Counter(count_obj.values()))
+      # vote_selects_count = [{"vote_select_id": id, "count": data[id], "content": id_content_table[id]} if id in data.keys() else {"vote_select_id": id, "count": 0, "content": id_content_table[id]} for id in vote_select_ids ]
+
+      vote_selects_count = [{"vote_select_id": obj["id"], "count": obj["count"],
+                             "content": obj["content"]} for obj in vote_selects_obj]
+      total_vote = sum([obj["count"] for obj in vote_selects_obj])
 
       """
       DB access
@@ -427,106 +431,101 @@ def count_vote_ver2(posts, user_info_id, is_parent=False):
 
 
 
+# def count_vote(posts, user_info_id):
+#   """
+#   count votes of the post
+#   rubbish code.
 
+#   three conditions:
+#   vote type 1
+#   vote type 2
+#   vote type 3
+#   """
 
+#   if type(posts) == dict:
+#     posts = [posts]
 
+#   for idx, post in enumerate(posts):
+#     post_id = post["id"]
+#     vote_type_id = post["vote_type"]["id"]
 
+#     if vote_type_id == 1:
+#       post_obj = Post.query.filter_by(id=post_id).first()
+#       vote_selects_obj = post_obj.vote_selects
 
-def count_vote(posts, user_info_id):
-  """
-  count votes of the post
-  rubbish code.
+#       vote_select_ids = [obj.id for obj in vote_selects_obj]
+#       vote_select_user_obj = VoteSelectUser.query.filter(VoteSelectUser.vote_select_id.in_(vote_select_ids)).all()
+#       count_obj = {obj.user_info_id: obj.vote_select_id for obj in vote_select_user_obj}
+#       id_content_table = {obj.id: obj.content for obj in vote_selects_obj}
 
-  three conditions:
-  vote type 1
-  vote type 2
-  vote type 3
-  """
+#       vote_selects_count = Counter(count_obj.values())
+#       total_vote = sum(vote_selects_count.values())
+#       data = dict(Counter(count_obj.values()))
+#       vote_selects_count = [{"vote_select_id": id, "count": data[id], "content": id_content_table[id]} if id in data.keys() else {"vote_select_id": id, "count": 0, "content": id_content_table[id]} for id in vote_select_ids ]
 
-  if type(posts) == dict:
-    posts = [posts]
+#       already_voted = True if len(UserInfoPostVoted.query.filter_by(user_info_id=user_info_id, post_id=post_id).all()) > 0 else False
 
-  for idx, post in enumerate(posts):
-    post_id = post["id"]
-    vote_type_id = post["vote_type"]["id"]
+#       current_datetime = datetime.now(timezone(timedelta(hours=0), 'UTC'))
+#       end_datetime = datetime.fromisoformat(post["end_at"])
+#       end_datetime = end_datetime.replace(tzinfo=timezone(timedelta(hours=0), 'UTC'))
 
-    if vote_type_id == 1:
-      post_obj = Post.query.filter_by(id=post_id).first()
-      vote_selects_obj = post_obj.vote_selects
-
-      vote_select_ids = [obj.id for obj in vote_selects_obj]
-      vote_select_user_obj = VoteSelectUser.query.filter(VoteSelectUser.vote_select_id.in_(vote_select_ids)).all()
-      count_obj = {obj.user_info_id: obj.vote_select_id for obj in vote_select_user_obj}
-      id_content_table = {obj.id: obj.content for obj in vote_selects_obj}
-
-      vote_selects_count = Counter(count_obj.values())
-      total_vote = sum(vote_selects_count.values())
-      data = dict(Counter(count_obj.values()))
-      vote_selects_count = [{"vote_select_id": id, "count": data[id], "content": id_content_table[id]} if id in data.keys() else {"vote_select_id": id, "count": 0, "content": id_content_table[id]} for id in vote_select_ids ]
-
-      already_voted = True if len(UserInfoPostVoted.query.filter_by(user_info_id=user_info_id, post_id=post_id).all()) > 0 else False
-
-      current_datetime = datetime.now(timezone(timedelta(hours=0), 'UTC'))
-      end_datetime = datetime.fromisoformat(post["end_at"])
-      end_datetime = end_datetime.replace(tzinfo=timezone(timedelta(hours=0), 'UTC'))
-
-      vote_period_end = True if current_datetime > end_datetime else False
+#       vote_period_end = True if current_datetime > end_datetime else False
       
-      posts[idx]["vote_select_ids"] = vote_select_ids
-      posts[idx]["vote_selects_count"] = vote_selects_count
-      posts[idx]["already_voted"] = already_voted
-      posts[idx]["total_vote"] = total_vote
-      posts[idx]["vote_period_end"] = vote_period_end
-      posts[idx]["my_vote"] = get_my_vote(post_id, user_info_id)
-      posts[idx]["gender_distribution"] = get_gender_distribution(post_id)
-      posts[idx]["age_distribution"] = get_age_distribution(post_id)
+#       posts[idx]["vote_select_ids"] = vote_select_ids
+#       posts[idx]["vote_selects_count"] = vote_selects_count
+#       posts[idx]["already_voted"] = already_voted
+#       posts[idx]["total_vote"] = total_vote
+#       posts[idx]["vote_period_end"] = vote_period_end
+#       posts[idx]["my_vote"] = get_my_vote(post_id, user_info_id)
+#       posts[idx]["gender_distribution"] = get_gender_distribution(post_id)
+#       posts[idx]["age_distribution"] = get_age_distribution(post_id)
       
     
-    elif vote_type_id == 2:
-      raw_mj_options = MjOption.query.filter_by(post_id=post_id).all()
-      mj_options = {obj.id: obj.content for obj in raw_mj_options}
-      # ADD USER FILTERING LATER
-      vote_mj_user_obj = VoteMjUser.query.filter_by(post_id=post_id).join(VoteMj, VoteMj.id==VoteMjUser.vote_mj_id).all() 
-      vote_mj_ids = list({obj.vote_mj_id for obj in vote_mj_user_obj})
+#     elif vote_type_id == 2:
+#       raw_mj_options = MjOption.query.filter_by(post_id=post_id).all()
+#       mj_options = {obj.id: obj.content for obj in raw_mj_options}
+#       # ADD USER FILTERING LATER
+#       vote_mj_user_obj = VoteMjUser.query.filter_by(post_id=post_id).join(VoteMj, VoteMj.id==VoteMjUser.vote_mj_id).all() 
+#       vote_mj_ids = list({obj.vote_mj_id for obj in vote_mj_user_obj})
 
-      vote_mj_obj = [{"vote_mj_id": obj.id, "content": obj.content} for obj in VoteMj.query.filter(VoteMj.id.in_(vote_mj_ids)).all()]
-      count_obj = [  {"vote_mj_id": mj_id, "mj_option_ids":[ obj.mj_option_id for obj in vote_mj_user_obj if mj_id==obj.vote_mj_id]} for mj_id in vote_mj_ids ]
-      total_vote = len(count_obj[0]["mj_option_ids"]) if len(count_obj) != 0 else 0
-      vote_mj_count = [{"count": [{"mj_option_id":key, "content":mj_options[key], "count": val} for key, val in dict(Counter(obj["mj_option_ids"])).items()], "vote_mj_id": obj["vote_mj_id"]}  for obj in count_obj]
+#       vote_mj_obj = [{"vote_mj_id": obj.id, "content": obj.content} for obj in VoteMj.query.filter(VoteMj.id.in_(vote_mj_ids)).all()]
+#       count_obj = [  {"vote_mj_id": mj_id, "mj_option_ids":[ obj.mj_option_id for obj in vote_mj_user_obj if mj_id==obj.vote_mj_id]} for mj_id in vote_mj_ids ]
+#       total_vote = len(count_obj[0]["mj_option_ids"]) if len(count_obj) != 0 else 0
+#       vote_mj_count = [{"count": [{"mj_option_id":key, "content":mj_options[key], "count": val} for key, val in dict(Counter(obj["mj_option_ids"])).items()], "vote_mj_id": obj["vote_mj_id"]}  for obj in count_obj]
 
-      already_voted = True if len(UserInfoPostVoted.query.filter_by(user_info_id=user_info_id, post_id=post_id).all()) > 0 else False
+#       already_voted = True if len(UserInfoPostVoted.query.filter_by(user_info_id=user_info_id, post_id=post_id).all()) > 0 else False
 
-      current_datetime = datetime.now(timezone(timedelta(hours=0), 'UTC'))
-      end_datetime = datetime.fromisoformat(post["end_at"])
-      end_datetime = end_datetime.replace(tzinfo=timezone(timedelta(hours=0), 'UTC'))
+#       current_datetime = datetime.now(timezone(timedelta(hours=0), 'UTC'))
+#       end_datetime = datetime.fromisoformat(post["end_at"])
+#       end_datetime = end_datetime.replace(tzinfo=timezone(timedelta(hours=0), 'UTC'))
 
-      vote_period_end = True if current_datetime > end_datetime else False
+#       vote_period_end = True if current_datetime > end_datetime else False
       
-      posts[idx]["vote_mj_ids"] = vote_mj_ids
-      posts[idx]["vote_mj_count"] = vote_mj_count
-      posts[idx]["vote_mj_obj"] = vote_mj_obj
-      posts[idx]["already_voted"] = already_voted
-      posts[idx]["total_vote"] = total_vote
-      posts[idx]["vote_period_end"] = vote_period_end
-      posts[idx]["my_vote"] = get_my_vote(post_id, user_info_id)
+#       posts[idx]["vote_mj_ids"] = vote_mj_ids
+#       posts[idx]["vote_mj_count"] = vote_mj_count
+#       posts[idx]["vote_mj_obj"] = vote_mj_obj
+#       posts[idx]["already_voted"] = already_voted
+#       posts[idx]["total_vote"] = total_vote
+#       posts[idx]["vote_period_end"] = vote_period_end
+#       posts[idx]["my_vote"] = get_my_vote(post_id, user_info_id)
 
-    elif vote_type_id == 3:
-      total_vote = len(UserInfoPostVoted.query.filter_by(post_id=post_id).all())
-      user_info_post_voted_obj = UserInfoPostVoted.query.filter_by(user_info_id=user_info_id, post_id=post_id).all()
-      already_voted = True if len(user_info_post_voted_obj) > 0 else False
+#     elif vote_type_id == 3:
+#       total_vote = len(UserInfoPostVoted.query.filter_by(post_id=post_id).all())
+#       user_info_post_voted_obj = UserInfoPostVoted.query.filter_by(user_info_id=user_info_id, post_id=post_id).all()
+#       already_voted = True if len(user_info_post_voted_obj) > 0 else False
 
-      current_datetime = datetime.now(timezone(timedelta(hours=0), 'UTC'))
-      end_datetime = datetime.fromisoformat(post["end_at"])
-      end_datetime = end_datetime.replace(tzinfo=timezone(timedelta(hours=0), 'UTC'))
-      vote_period_end = True if current_datetime > end_datetime else False
-      children_posts = Post.query.filter_by(parent_id=post_id).all()
+#       current_datetime = datetime.now(timezone(timedelta(hours=0), 'UTC'))
+#       end_datetime = datetime.fromisoformat(post["end_at"])
+#       end_datetime = end_datetime.replace(tzinfo=timezone(timedelta(hours=0), 'UTC'))
+#       vote_period_end = True if current_datetime > end_datetime else False
+#       children_posts = Post.query.filter_by(parent_id=post_id).all()
 
-      posts[idx]["already_voted"] = already_voted
-      posts[idx]["total_vote"] = total_vote
-      posts[idx]["vote_period_end"] = vote_period_end
-      posts[idx]["num_of_children"] = len(children_posts)
+#       posts[idx]["already_voted"] = already_voted
+#       posts[idx]["total_vote"] = total_vote
+#       posts[idx]["vote_period_end"] = vote_period_end
+#       posts[idx]["num_of_children"] = len(children_posts)
 
-  return posts
+#   return posts
 
 
 # def count_vote_option(posts, user_info_id, options):
@@ -828,27 +827,22 @@ class PostResource(Resource):
 
       if keyword == "recommend":
         """
-        get all posts that has topics which the user has followed 
+        get all posts that has topics the user has followed 
         """
         if user_info_id is None:
           yesterday_datetime = (datetime.now(timezone(timedelta(hours=0), 'UTC')) - timedelta(days=7)).isoformat()
           posts = Post.query \
           .filter(Post.country_id == country_id, Post.created_at > yesterday_datetime, Post.group_id==group_id, Post.parent_id==None) \
-          .join(Post.vote_selects, isouter=True) \
-          .join(Post.vote_mjs, isouter=True) \
-          .join(Post.mj_options, isouter=True) \
           .order_by(Post.num_vote.desc()).distinct() \
           .paginate(page, per_page=config.POSTS_PER_PAGE).items
           
         else:
           posts = Post.query.filter_by(country_id=country_id, parent_id=None) \
-          .join(Post.vote_selects, isouter=True) \
-          .join(Post.vote_mjs, isouter=True) \
-          .join(Post.mj_options, isouter=True) \
-          .join(PostTopic, PostTopic.id == Post.id, isouter=True) \
+          .join(PostTopic, PostTopic.post_id == Post.id, isouter=True) \
           .join(UserInfoTopic, UserInfoTopic.topic_id == PostTopic.topic_id, isouter=True) \
           .filter(UserInfoTopic.user_info_id == user_info_id) \
-          .order_by(Post.id.desc()).distinct().paginate(page, per_page=config.POSTS_PER_PAGE).items
+          .order_by(Post.id.desc()).distinct() \
+          .paginate(page, per_page=config.POSTS_PER_PAGE).items
           
         post_obj = posts_schema.dump(posts)
         count_vote_obj = count_vote_ver2(post_obj, user_info_id)

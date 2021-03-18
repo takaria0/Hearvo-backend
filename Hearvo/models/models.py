@@ -130,7 +130,7 @@ class VoteSelect(db.Model):
   id = db.Column(db.BigInteger, primary_key=True, nullable=False)
   # post_id = db.Column(db.String(20))
   content = db.Column(db.String(100))
-  count = db.Column(db.BigInteger)
+  count = db.Column(db.BigInteger, default=0)
   created_at = db.Column(db.DateTime, default=datetime.now(timezone(timedelta(hours=0), 'UTC')).isoformat())
   updated_at = db.Column(db.DateTime, default=datetime.now(timezone(timedelta(hours=0), 'UTC')).isoformat(), onupdate=datetime.now(timezone(timedelta(hours=0), 'UTC')).isoformat())
 

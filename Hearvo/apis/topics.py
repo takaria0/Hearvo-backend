@@ -46,14 +46,14 @@ class TopicResource(Resource):
         """
         get popular topics in the last 24 hours
         """
-        yesterday_datetime = (datetime.now(timezone(timedelta(hours=0), 'UTC')) - timedelta(hours=24)).isoformat()
+        yesterday_datetime = (datetime.now(timezone(timedelta(hours=0), 'UTC')) - timedelta(days=7)).isoformat()
         q = db.session.query(Topic.topic, func.count(PostTopic.topic_id)) \
         .join(PostTopic, PostTopic.topic_id == Topic.id, isouter=True) \
         .order_by(func.count(PostTopic.topic_id).desc()) \
         .group_by(Topic.id, PostTopic.topic_id) \
         .filter(PostTopic.created_at > yesterday_datetime, Topic.country_id == country_id) \
         .limit(10) \
-        .all() 
+        .all()
 
         result = topics_schema.dump(q)
         return result, 200
