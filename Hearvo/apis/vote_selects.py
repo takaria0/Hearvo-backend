@@ -26,32 +26,33 @@ class VoteSelectResource(Resource):
 
   @jwt_required
   def get(self):
-    vote_selects = VoteSelect.query.all()
-    return vote_selects_schema.dump(vote_selects)
+    # vote_selects = VoteSelect.query.all()
+    # return vote_selects_schema.dump(vote_selects)
+    return {}, 200
 
-  @jwt_required
-  def post(self):
-    new_vote_select = VoteSelect(
-      post_id=request.json["post_id"],
-      content=request.json['content'],
-      created_at=datetime.now(timezone(timedelta(hours=0), 'UTC')).isoformat()
-    )
+  # @jwt_required
+  # def post(self):
+  #   new_vote_select = VoteSelect(
+  #     post_id=request.json["post_id"],
+  #     content=request.json['content'],
+  #     created_at=datetime.now(timezone(timedelta(hours=0), 'UTC')).isoformat()
+  #   )
 
-    try:
-      db.session.add(new_vote_select)
-      db.session.commit()
-      res_obj = {"message": "created"}
-      status_code = 200
-    except:
-      db.session.rollback()
-      res_obj = {"message": "created"}
-      status_code = 400
-    finally:
-      pass
-      # db.session.close()
+  #   try:
+  #     db.session.add(new_vote_select)
+  #     db.session.commit()
+  #     res_obj = {"message": "created"}
+  #     status_code = 200
+  #   except:
+  #     db.session.rollback()
+  #     res_obj = {"message": "created"}
+  #     status_code = 400
+  #   finally:
+  #     pass
+  #     # db.session.close()
 
 
-    return res_obj, status_code
+  #   return res_obj, status_code
 
 class CountVoteSelectResource(Resource):
 
@@ -59,19 +60,31 @@ class CountVoteSelectResource(Resource):
   def post(self):
     logger_api("request.json", str(request.json))
     post_id = request.json["post_id"]
-    post_obj = Post.query.filter_by(id=post_id).first()
-    vote_selects_obj = post_obj.vote_selects
+
+    post_obj = Post.query.filter_by(id=post_id).first() # DB access
+    vote_selects_obj = post_obj.vote_selects # lazy loading
 
     vote_select_ids = [obj.id for obj in vote_selects_obj]
-    vote_select_user_obj = VoteSelectUser.query.filter(VoteSelectUser.vote_select_id.in_(vote_select_ids)).all()
-    count_obj = {obj.user_info_id: obj.vote_select_id for obj in vote_select_user_obj}
-    id_content_table = {obj.id: obj.content for obj in vote_selects_obj}
 
-    vote_selects_count = Counter(count_obj.values())
-    total_vote = sum(vote_selects_count.values())
-    data = dict(Counter(count_obj.values()))
-    vote_selects_count = [{"vote_select_id": id, "count": data[id], "content": id_content_table[id]} if id in data.keys() else {"vote_select_id": id, "count": 0, "content": id_content_table[id]} for id in vote_select_ids ]
+    """
+    Below code may be super inefficient
+    """
+    # vote_select_user_obj = VoteSelectUser.query.filter(VoteSelectUser.vote_select_id.in_(vote_select_ids)).all()
 
+    # count_obj = {obj.user_info_id: obj.vote_select_id for obj in vote_select_user_obj}
+    # id_content_table = {obj.id: obj.content for obj in vote_selects_obj}
+
+    # vote_selects_count = Counter(count_obj.values())
+    # total_vote = sum(vote_selects_count.values())
+    # data = dict(Counter(count_obj.values()))
+    # vote_selects_count = [{"vote_select_id": id, "count": data[id], "content": id_content_table[id]} if id in data.keys() else {"vote_select_id": id, "count": 0, "content": id_content_table[id]} for id in vote_select_ids ]
+
+    """
+    updated 
+    """
+    vote_selects_count = [{"vote_select_id": obj.id, "count": obj.count,
+                           "content": obj.content} for obj in vote_selects_obj]
+    total_vote = sum([obj.count for obj in vote_selects_obj])
 
     res_obj = {"message": "count the vote", "vote_select_ids": vote_select_ids, "vote_selects_count": vote_selects_count, "total_vote": total_vote}
     status_code = 200
@@ -115,13 +128,15 @@ class VoteSelectUserResource(Resource):
 
   @jwt_required
   def post(self):
-    logger_api("request.json", request.json)
     user_info_id = get_jwt_identity()
-    logger_api("user_info_id", user_info_id)
     vote_select_id = request.json["vote_select_id"]
     post_id = request.json["post_id"]
-    logger_api("vote_select_id", vote_select_id)
-    logger_api("post_id", post_id)
+
+
+    # Update VoteSelect Count
+    vote_select_obj = VoteSelect.query.filter_by(id=vote_select_id).first()
+    vote_select_obj.count = vote_select_obj.count + 1
+
     new_vote_select = VoteSelectUser(
       vote_select_id=vote_select_id,
       user_info_id=user_info_id,
@@ -136,6 +151,7 @@ class VoteSelectUserResource(Resource):
       user_info_id=user_info_id,
       post_id=post_id,
       vote_type_id=1,
+      created_at=datetime.now(timezone(timedelta(hours=0), 'UTC')).isoformat()
     )
 
     check_obj = VoteSelectUser.query.filter_by(post_id=post_id, user_info_id=user_info_id).all()
@@ -147,6 +163,7 @@ class VoteSelectUserResource(Resource):
       return res_obj, 
       
     try:
+      db.session.add(vote_select_obj)
       db.session.add(new_vote_select)
       db.session.add(post_obj)
       db.session.add(user_info_post_voted_obj)
@@ -192,14 +209,23 @@ class MultipleVoteUsersResource(Resource):
     """
     create assosiation between the user, the post and the vote result
     """
+    update_vote_select_list = []
     new_vote_select_list = []
     user_info_post_voted_list = []
     for each in result:
+      """
+      update count of VoteSelect
+      """
+      vote_select_obj = VoteSelect.query.get(each["vote_select_id"])
+      vote_select_obj.count = vote_select_obj.count + 1
+      update_vote_select_list.append(vote_select_obj)
+
       new_vote_select_list.append(
         VoteSelectUser(
           vote_select_id=each["vote_select_id"],
           user_info_id=user_info_id,
-          post_id=each["post_id"]
+          post_id=each["post_id"],
+          created_at=datetime.now(timezone(timedelta(hours=0), 'UTC')).isoformat()
         )
       )
       user_info_post_voted_list.append(
@@ -207,6 +233,7 @@ class MultipleVoteUsersResource(Resource):
           user_info_id=user_info_id,
           post_id=each["post_id"],
           vote_type_id=1, # important
+          created_at=datetime.now(timezone(timedelta(hours=0), 'UTC')).isoformat()
         )
       )
 
@@ -222,21 +249,24 @@ class MultipleVoteUsersResource(Resource):
         user_info_id=user_info_id,
         post_id=parent_id,
         vote_type_id=3, # important
+        created_at=datetime.now(
+            timezone(timedelta(hours=0), 'UTC')).isoformat()
       )
     )
 
-    # try:
-    db.session.bulk_save_objects(new_vote_select_list)
-    db.session.bulk_save_objects(user_info_post_voted_list)
-    db.session.add(post_obj)
-    db.session.commit()
+    try:
+      db.session.add_all(update_vote_select_list)
+      db.session.bulk_save_objects(new_vote_select_list)
+      db.session.bulk_save_objects(user_info_post_voted_list)
+      db.session.add(post_obj)
+      db.session.commit()
 
-    res_obj = {"message": "created"}
-    status_code = 200
-    # except:
-    #   db.session.rollback()
-    #   res_obj = {"message": "failed to create"}
-    #   status_code = 400
+      res_obj = {"message": "created"}
+      status_code = 200
+    except:
+      db.session.rollback()
+      res_obj = {"message": "failed to create"}
+      status_code = 400
 
     return res_obj, status_code
 
@@ -295,7 +325,7 @@ def get_first_result(first_target, parent_id):
       content = vote_select_obj.content
       content = slice_content_length(content)
 
-      users = user_info_schemas.dump(vote_select_obj.users)
+      users = user_info_schemas.dump(vote_select_obj.users) # lazy loading
       user_info_id_list = [user["id"] for user in users]
       result.append({"content": content, "user_info_id_list": user_info_id_list})
     
