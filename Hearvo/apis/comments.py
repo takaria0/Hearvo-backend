@@ -97,6 +97,9 @@ class CommentResource(Resource):
 
     content = request.json["content"]
 
+    if len(content) > 5000 or len(content) < 1:
+      return {}, 400
+
     new_comment = Comment(
       user_info_id=user_info_id,
       post_id=post_id,
