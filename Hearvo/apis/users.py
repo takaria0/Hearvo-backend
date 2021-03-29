@@ -65,7 +65,11 @@ class UserResource(Resource):
       gender_detail = request.json["gender_detail"]
       # occupation = request.json["occupation"]
 
-      # UPDATE USER
+      """ can't update anymore because: """
+      if (user_info_obj.gender != None) or (user_info_obj.birth_year != None):
+        return {}, 400
+
+      # UPDATE USER 
       user_info_obj.gender = gender
       user_info_obj.birth_year = birth_year
       user_info_obj.gender_detail = gender_detail

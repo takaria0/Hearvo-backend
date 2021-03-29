@@ -21,6 +21,14 @@ from Hearvo.utils import cache_delete_latest_posts, cache_delete_all_posts
 user_info_post_voted_schema = UserInfoPostVotedSchema(many=True)
 
 
+def validate_vote_obj(vote_obj):
+  count = 0
+  for obj in vote_obj:
+    if len(obj["content"]) == 0:
+      count += 1
+
+  return False if count == 0 else True
+
 def distribute_year(age_list):
   result =   {
     "0_9": 0,
@@ -119,6 +127,10 @@ def handle_vote_type_3(data, country_id, user_info_id, group_id):
   """ save the children """
   children_data_all = []
   for each in data["children"]:
+    
+    if validate_vote_obj(each["vote_obj"]):
+      raise ValueError("Contains zero length vote obj")
+
     vote_obj_list = [VoteSelect(content=ea["content"]) for ea in each["vote_obj"]]
      # not working. have to add after children insert
     children_data = Post(
@@ -1033,15 +1045,17 @@ class PostResource(Resource):
 
 
     title = data['title']
-
-    if not title:
-      raise ValueError("no title")
-
     content = data['content']
     end_at = data['end_at']
     vote_obj = data["vote_obj"]
     topic_list = data["topic"]
-    
+
+    if not title:
+      return {}, 400
+
+    if validate_vote_obj(vote_obj):
+      return {}, 400
+
 
 
     """
