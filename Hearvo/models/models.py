@@ -37,7 +37,7 @@ class Post(db.Model):
   group_id = db.Column(db.BigInteger, db.ForeignKey('group.id'), nullable=True)
 
   # One to Many
-  vote_selects = db.relationship("VoteSelect", backref="post")
+  vote_selects = db.relationship("VoteSelect", order_by="VoteSelect.id", backref="post")
   vote_mjs = db.relationship("VoteMj", backref="post")
   mj_options = db.relationship("MjOption", backref="post")
   comments = db.relationship("Comment", backref="post")
