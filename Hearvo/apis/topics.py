@@ -75,7 +75,8 @@ class TopicResource(Resource):
             db.session.add(Topic(topic=topic, country_id=country_id))
         
         db.session.commit()
-        topics = Topic.query.filter(Topic.topic.in_(initial_topics)).all()
+        topics = Topic.query.filter(Topic.topic.in_(
+            initial_topics), Topic.country_id == country_id).all()
         result = topics_schema.dump(topics)
         return result, 200
 
