@@ -57,10 +57,10 @@ class SignupResource(Resource):
     check_user_name = User.query.filter_by(name=user_name).first()
 
     if (check_email is not None):
-      return {"message": "このメールアドレスは既に使われています"}, 400
+      return {"message": "This email addres is already in use"}, 400
 
     if (check_user_name is not None):
-      return {"message": "このユーザーネームは既に使われています"}, 400
+      return {"message": "This username is already in use"}, 400
         
     # generate hashed password using bcrypt.
     # for more info, look for the doc of bcrypt
@@ -89,12 +89,12 @@ class SignupResource(Resource):
       db.session.add(new_user_info)
       db.session.commit()
 
-      res_obj = {"message": "アカウントを作成しました"}
+      res_obj = {"message": "Created a new account"}
       status_code = 200
       
     except:
       db.session.rollback()
-      res_obj =  {"message": "アカウントの作成に失敗しました"}
+      res_obj =  {"message": "Failed to create a new account"}
       status_code = 400
 
     finally:
