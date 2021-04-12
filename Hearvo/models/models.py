@@ -35,16 +35,44 @@ class Post(db.Model):
   vote_type_id = db.Column(db.BigInteger, db.ForeignKey('vote_type.id'), nullable=False)
   user_info_id = db.Column(db.BigInteger, db.ForeignKey('user_info.id'), nullable=False)
   group_id = db.Column(db.BigInteger, db.ForeignKey('group.id'), nullable=True)
+  current_post_detail_id = db.Column(db.BigInteger, db.ForeignKey('post_detail.id'), nullable=True)
 
   # One to Many
-  vote_selects = db.relationship("VoteSelect", order_by="VoteSelect.id", backref="post")
-  vote_mjs = db.relationship("VoteMj", backref="post")
-  mj_options = db.relationship("MjOption", backref="post")
+  # WRITE JOIN CONDITION HERE. WHERE current_post_detail_id == post_detail_id
+  # post_detail = db.relationship("PostDetail", backref="post")
+
+  vote_selects = db.relationship("VoteSelect", order_by="VoteSelect.id", backref="post") # DELETE IN THE FUTURE
+  vote_mjs = db.relationship("VoteMj", backref="post")  # DELETE IN THE FUTURE
+  mj_options = db.relationship("MjOption", backref="post")  # DELETE IN THE FUTURE
   comments = db.relationship("Comment", backref="post")
   topics = db.relationship("PostTopic", backref="post")
 
   def __repr__(self):
       return '<Post %s>' % self.title
+
+#########################################
+# PostDetail
+#########################################
+class PostDetail(db.Model):
+  __tablename__ = "post_detail"
+
+  id = db.Column(db.BigInteger, primary_key=True, nullable=False)
+  num_vote = db.Column(db.BigInteger, default=0)
+  start_at = db.Column(db.DateTime, default=datetime.now(timezone(timedelta(hours=0), 'UTC')).isoformat())
+  end_at = db.Column(db.DateTime, default=None)
+  is_deleted = db.Column(db.Boolean, default=False)
+  created_at = db.Column(db.DateTime, default=datetime.now(timezone(timedelta(hours=0), 'UTC')).isoformat())
+  updated_at = db.Column(db.DateTime, default=datetime.now(timezone(timedelta(hours=0), 'UTC')).isoformat(
+  ), onupdate=datetime.now(timezone(timedelta(hours=0), 'UTC')).isoformat())
+
+  # Foreign Key
+  post_id = db.Column(db.BigInteger, db.ForeignKey('post.id'), nullable=False)
+  user_info_id = db.Column(db.BigInteger, db.ForeignKey('user_info.id'), nullable=False)
+
+  # One to Many
+  vote_selects = db.relationship("VoteSelect", order_by="VoteSelect.id", backref="post_detail")
+  vote_mjs = db.relationship("VoteMj", backref="post_detail")
+  mj_options = db.relationship("MjOption", backref="post_detail")
 
 
 
@@ -57,26 +85,11 @@ class User(db.Model):
   id = db.Column(db.BigInteger, primary_key=True, nullable=False)
   google_id = db.Column(db.String(32), unique=True, nullable=True)
   name = db.Column(db.String(100), unique=True)
-  # string_id = db.Column(db.String(20), unique=True)
-  # name = db.Column(db.String(100))
-  # email = db.Column(db.String(350), unique=True)
-  # description = db.Column(db.String(300))
-  # occupation = db.Column(db.String(100))
-  # gender = db.Column(db.String(100))
-  # age = db.Column(db.BigInteger)
-  # birthday = db.Column(db.DateTime)
   email = db.Column(db.String(350), unique=True)
   deleted_email = db.Column(db.String(350), unique=False)
   hashed_password = db.Column(db.String(150), nullable=True)
   created_at = db.Column(db.DateTime, default=datetime.now(timezone(timedelta(hours=0), 'UTC')).isoformat())
   updated_at = db.Column(db.DateTime, default=datetime.now(timezone(timedelta(hours=0), 'UTC')).isoformat(), onupdate=datetime.now(timezone(timedelta(hours=0), 'UTC')).isoformat())
-
-  # One to Many
-  # posts = db.relationship("Post", backref="user")
-  # comments = db.relationship("Comment", backref="user")
-
-  # Many to Many
-  # vote_selects = db.relationship("VoteSelect", secondary="vote_select_user")
 
   def __repr__(self):
       return '<User %s>' % self.name
@@ -135,7 +148,8 @@ class VoteSelect(db.Model):
   updated_at = db.Column(db.DateTime, default=datetime.now(timezone(timedelta(hours=0), 'UTC')).isoformat(), onupdate=datetime.now(timezone(timedelta(hours=0), 'UTC')).isoformat())
 
   # Foreign Key
-  post_id = db.Column(db.BigInteger, db.ForeignKey('post.id'))
+  post_id = db.Column(db.BigInteger, db.ForeignKey('post.id'), nullable=True) # DELETE IN THE FUTURE?
+  post_detail_id = db.Column(db.BigInteger, db.ForeignKey('post_detail.id'), nullable=False)
 
   # Many to Many
   users = db.relationship("UserInfo", secondary="vote_select_user")
@@ -157,9 +171,10 @@ class VoteSelectUser(db.Model):
   updated_at = db.Column(db.DateTime, default=datetime.now(timezone(timedelta(hours=0), 'UTC')).isoformat(), onupdate=datetime.now(timezone(timedelta(hours=0), 'UTC')).isoformat())
 
   # Foreign Key
-  vote_select_id = db.Column(db.BigInteger, db.ForeignKey('vote_select.id'), primary_key=True)
-  user_info_id = db.Column(db.BigInteger, db.ForeignKey('user_info.id'), primary_key=True)
-  post_id = db.Column(db.BigInteger, db.ForeignKey('post.id'), primary_key=True)
+  vote_select_id = db.Column(db.BigInteger, db.ForeignKey('vote_select.id'), primary_key=True) # is this pk ok?
+  user_info_id = db.Column(db.BigInteger, db.ForeignKey('user_info.id'), primary_key=True) # is this pk ok?
+  post_id = db.Column(db.BigInteger, db.ForeignKey('post.id'), primary_key=True) # is this pk ok?
+  post_detail_id = db.Column(db.BigInteger, db.ForeignKey('post_detail.id'), nullable=False)
 
   # one to one
   user_info = db.relationship('UserInfo', backref='vote_select_user', lazy=True, uselist=False)
@@ -185,6 +200,7 @@ class VoteMj(db.Model):
 
   # Foreign Key
   post_id = db.Column(db.BigInteger, db.ForeignKey('post.id'))
+  post_detail_id = db.Column(db.BigInteger, db.ForeignKey('post_detail.id'), nullable=False)
 
   def __repr__(self):
       return '<VoteMj %s>' % self.post_id
@@ -201,7 +217,7 @@ class MjOption(db.Model):
   # Foreign Key
   country_id = db.Column(db.BigInteger, db.ForeignKey('country.id'), nullable=True)
   post_id = db.Column(db.BigInteger, db.ForeignKey('post.id'), nullable=False)
-  # vote_mj_id = db.Column(db.BigInteger, db.ForeignKey('vote_mj.id'), nullable=False)
+  post_detail_id = db.Column(db.BigInteger, db.ForeignKey('post_detail.id'), nullable=False)
 
   def __repr__(self):
       return '<MjOption %s>' % self.post_id
@@ -269,17 +285,17 @@ class CommentFav(db.Model):
 
 
 
-#########################################
-# Lang
-#########################################
-class Lang(db.Model):
-  __tablename__ = "lang"
+# #########################################
+# # Lang
+# #########################################
+# class Lang(db.Model):
+#   __tablename__ = "lang"
 
-  id = db.Column(db.BigInteger, primary_key=True, nullable=False)
-  language = db.Column(db.String(100), nullable=False)
+#   id = db.Column(db.BigInteger, primary_key=True, nullable=False)
+#   language = db.Column(db.String(100), nullable=False)
 
-  def __repr__(self):
-      return ' Lang %s>' % self.language
+#   def __repr__(self):
+#       return ' Lang %s>' % self.language
 
 #########################################
 # Country
@@ -309,9 +325,7 @@ class UserInfoPostVoted(db.Model):
   user_info_id = db.Column(db.BigInteger, db.ForeignKey('user_info.id'), nullable=False)
   post_id = db.Column(db.BigInteger, db.ForeignKey('post.id'), nullable=False)
   vote_type_id = db.Column(db.BigInteger, db.ForeignKey('vote_type.id'), nullable=False)
-
-  # One to Many
-  # user_info = db.relationship("UserInfo", secondary="user_info_post_voted")
+  post_detail_id = db.Column(db.BigInteger, db.ForeignKey('post_detail.id'), nullable=False)
 
   def __repr__(self):
       return '<UserInfoPostVoted %s>' % self.content
