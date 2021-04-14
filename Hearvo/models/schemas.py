@@ -2,7 +2,7 @@ from flask_marshmallow import Marshmallow
 from marshmallow_sqlalchemy import SQLAlchemyAutoSchema, fields
 from marshmallow_sqlalchemy.fields import Nested
 
-from .models import Post, User, VoteSelect, VoteSelectUser, Comment, UserInfo, VoteType, VoteMj, MjOption, Topic, PostTopic, UserInfoTopic, Group, UserInfoPostVoted, CommentFav
+from .models import Post, User, VoteSelect, VoteSelectUser, Comment, UserInfo, VoteType, VoteMj, MjOption, Topic, PostTopic, UserInfoTopic, Group, UserInfoPostVoted, CommentFav, PostDetail
 
 class GroupSchema(SQLAlchemyAutoSchema):
   class Meta:
@@ -132,18 +132,42 @@ class CommentSchema(SQLAlchemyAutoSchema):
     # exclude = ("hashed_password",)
 
 
+class MultiplePostDetailSchema(SQLAlchemyAutoSchema):
+  class Meta:
+    model = PostDetail
+    include_relationships = False
+    include_fk = False
+    exclude = ("created_at", "updated_at")
+
+
+class PostDetailSchema(SQLAlchemyAutoSchema):
+  class Meta:
+    model = PostDetail
+    include_relationships = True
+    # exclude = ("user",)
+
+
+  vote_selects = Nested(VoteSelectSchema(exclude=("users",)), many=True)
+  vote_mjs = Nested(VoteMjSchema, many=True)
+  # user_info = Nested(UserInfoSchema(exclude=("vote_selects","posts","comments", "vote_select_user",)), many=False)
+
+
 class PostSchema(SQLAlchemyAutoSchema):
   class Meta:
     model = Post
     include_relationships = True
-    # exclude = ("user",)
-
-  vote_selects = Nested(VoteSelectSchema(exclude=("users",)), many=True)
-  vote_mjs = Nested(VoteMjSchema, many=True)
+    include_fk = True
+    exclude = ("vote_selects",)
+    
+  post_details = Nested(MultiplePostDetailSchema, many=False) # many=True yield an error, why?????
+  current_post_detail = Nested(PostDetailSchema, many=False)
   topics = Nested(PostTopicSchema, many=True)
-  mj_options = Nested(MjOptionSchema, many=True)
-  user_info = Nested(UserInfoSchema(exclude=("vote_selects","posts","comments", "vote_select_user",)), many=False)
   vote_type = Nested(VoteTypeSchema(many=False))
+  # vote_selects = Nested(VoteSelectSchema(exclude=("users",)), many=True)
+  # vote_mjs = Nested(VoteMjSchema, many=True)
+  # mj_options = Nested(MjOptionSchema, many=True)
+  # user_info = Nested(UserInfoSchema(exclude=("vote_selects","posts","comments", "vote_select_user",)), many=False)
+  
   
 
   # comments = Nested(CommentSchema(exclude=("user",)), many=True)

@@ -9,7 +9,7 @@ from flask_jwt_extended import jwt_required, get_jwt_identity
 
 import Hearvo.config as config
 from ..app import logger, cache
-from ..models import db, VoteSelect, VoteSelectSchema, VoteSelectUser, Post, UserInfoPostVoted, UserInfoSchema, UserInfo, VoteSelectUserSchema
+from ..models import db, VoteSelect, VoteSelectSchema, VoteSelectUser, Post, UserInfoPostVoted, UserInfoSchema, UserInfo, VoteSelectUserSchema, PostDetail
 from .logger_api import logger_api
 from Hearvo.utils import cache_delete_latest_posts, cache_delete_all_posts
 
@@ -62,7 +62,7 @@ class CountVoteSelectResource(Resource):
     post_id = request.json["post_id"]
 
     post_obj = Post.query.filter_by(id=post_id).first() # DB access
-    vote_selects_obj = post_obj.vote_selects # lazy loading
+    vote_selects_obj = post_obj.current_post_detail.vote_selects # lazy loading
 
     vote_select_ids = [obj.id for obj in vote_selects_obj]
 
@@ -98,10 +98,11 @@ class VoteSelectUserResource(Resource):
   def get(self):
     user_info_id = get_jwt_identity()
     post_id = request.args["post_id"]
-    vote_selects = VoteSelectUser.query.filter_by(user_info_id=user_info_id, post_id=post_id).all()
+    post_obj = Post.query.get(post_id)
+    current_post_detail_id = post_obj.current_post_detail_id
+    vote_selects = VoteSelectUser.query.filter_by(user_info_id=user_info_id, post_detail_id=current_post_detail_id).all()
     vote_selects_list = [obj.user_info_id for obj in vote_selects]
 
-    post_obj = Post.query.get(post_id)
     end_at = str(post_obj.end_at)
 
     try:
@@ -131,7 +132,9 @@ class VoteSelectUserResource(Resource):
     user_info_id = get_jwt_identity()
     vote_select_id = request.json["vote_select_id"]
     post_id = request.json["post_id"]
-
+    post_obj = Post.query.get(post_id)
+    current_post_detail_id = post_obj.current_post_detail_id
+    post_detail_obj = PostDetail.query.get(current_post_detail_id)
 
     # Update VoteSelect Count
     vote_select_obj = VoteSelect.query.filter_by(id=vote_select_id).first()
@@ -141,22 +144,25 @@ class VoteSelectUserResource(Resource):
       vote_select_id=vote_select_id,
       user_info_id=user_info_id,
       post_id=post_id,
+      post_detail_id=current_post_detail_id,
       created_at=datetime.now(timezone(timedelta(hours=0), 'UTC')).isoformat()
     )
 
-    post_obj = Post.query.get(post_id)
-    post_obj.num_vote = post_obj.num_vote + 1
+    """
+    increment total vote
+    """
+    post_detail_obj.num_vote = post_detail_obj.num_vote + 1
 
     user_info_post_voted_obj = UserInfoPostVoted(
       user_info_id=user_info_id,
       post_id=post_id,
       vote_type_id=1,
+      post_detail_id=current_post_detail_id,
       created_at=datetime.now(timezone(timedelta(hours=0), 'UTC')).isoformat()
     )
 
-    check_obj = VoteSelectUser.query.filter_by(post_id=post_id, user_info_id=user_info_id).all()
-    check_list = [obj.user_info_id for obj in check_obj]
-    if len(check_list) >= 1:
+    check_obj = VoteSelectUser.query.filter_by(post_id=post_id, post_detail_id=current_post_detail_id,user_info_id=user_info_id).count()
+    if check_obj >= 1:
       res_obj = {"message": "failed to create"}
       status_code = 200
       logger.info("ALREADY CREATED")
@@ -165,7 +171,7 @@ class VoteSelectUserResource(Resource):
     try:
       db.session.add(vote_select_obj)
       db.session.add(new_vote_select)
-      db.session.add(post_obj)
+      db.session.add(post_detail_obj)
       db.session.add(user_info_post_voted_obj)
       db.session.commit()
 
@@ -194,13 +200,15 @@ class MultipleVoteUsersResource(Resource):
     user_info_id = get_jwt_identity()
     parent_id = request.json["parent_id"]
     result = request.json["result"]
+    parent_obj = Post.query.get(parent_id)
+    current_parent_post_detail_id = parent_obj.current_post_detail_id
+    parent_detail_obj = PostDetail.query.get(current_parent_post_detail_id)
 
     """
     check if the user has already voted for the post
     """
-    check_obj = UserInfoPostVoted.query.filter_by(post_id=parent_id, user_info_id=user_info_id).all()
-    check_list = [obj.user_info_id for obj in check_obj]
-    if len(check_list) >= 1:
+    check_obj = UserInfoPostVoted.query.filter_by(post_id=parent_id, post_detail_id=current_parent_post_detail_id,user_info_id=user_info_id).count()
+    if check_obj >= 1:
       res_obj = {"message": "failed to create"}
       status_code = 200
       logger.info("ALREADY CREATED")
@@ -213,6 +221,8 @@ class MultipleVoteUsersResource(Resource):
     new_vote_select_list = []
     user_info_post_voted_list = []
     for each in result:
+      each_post_obj = Post.query.get(each["post_id"])
+      current_post_detail_id = each_post_obj.current_post_detail_id
       """
       update count of VoteSelect
       """
@@ -225,6 +235,7 @@ class MultipleVoteUsersResource(Resource):
           vote_select_id=each["vote_select_id"],
           user_info_id=user_info_id,
           post_id=each["post_id"],
+          post_detail_id=current_post_detail_id,
           created_at=datetime.now(timezone(timedelta(hours=0), 'UTC')).isoformat()
         )
       )
@@ -233,6 +244,7 @@ class MultipleVoteUsersResource(Resource):
           user_info_id=user_info_id,
           post_id=each["post_id"],
           vote_type_id=1, # important
+          post_detail_id=current_post_detail_id,
           created_at=datetime.now(timezone(timedelta(hours=0), 'UTC')).isoformat()
         )
       )
@@ -241,14 +253,14 @@ class MultipleVoteUsersResource(Resource):
     """
     update parent post's num of posts
     """
-    post_obj = Post.query.get(parent_id)
-    post_obj.num_vote = post_obj.num_vote + 1
+    parent_detail_obj.num_vote = parent_detail_obj.num_vote + 1
     
     user_info_post_voted_list.append(
       UserInfoPostVoted(
         user_info_id=user_info_id,
         post_id=parent_id,
         vote_type_id=3, # important
+        post_detail_id=current_parent_post_detail_id,
         created_at=datetime.now(
             timezone(timedelta(hours=0), 'UTC')).isoformat()
       )
@@ -258,7 +270,7 @@ class MultipleVoteUsersResource(Resource):
       db.session.add_all(update_vote_select_list)
       db.session.bulk_save_objects(new_vote_select_list)
       db.session.bulk_save_objects(user_info_post_voted_list)
-      db.session.add(post_obj)
+      db.session.add(parent_detail_obj)
       db.session.commit()
 
       res_obj = {"message": "created"}

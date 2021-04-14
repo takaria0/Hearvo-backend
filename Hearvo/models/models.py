@@ -1,5 +1,5 @@
 from datetime import datetime, timedelta, timezone
-
+from typing import List
 from flask_sqlalchemy import SQLAlchemy
 
 
@@ -38,9 +38,9 @@ class Post(db.Model):
   current_post_detail_id = db.Column(db.BigInteger, db.ForeignKey('post_detail.id'), nullable=True)
 
   # One to Many
-  # WRITE JOIN CONDITION HERE. WHERE current_post_detail_id == post_detail_id
-  # post_detail = db.relationship("PostDetail", backref="post")
-
+  # primary_join argument replace the default join condition, which is basically Post.id==PostDetail.post_id .
+  post_details = db.relationship("PostDetail", primaryjoin="Post.id==PostDetail.post_id", foreign_keys=id)
+  current_post_detail = db.relationship("PostDetail", backref="post", primaryjoin="and_(Post.id==PostDetail.post_id, Post.current_post_detail_id==PostDetail.id)", foreign_keys="[Post.id, Post.current_post_detail_id]")
   vote_selects = db.relationship("VoteSelect", order_by="VoteSelect.id", backref="post") # DELETE IN THE FUTURE
   vote_mjs = db.relationship("VoteMj", backref="post")  # DELETE IN THE FUTURE
   mj_options = db.relationship("MjOption", backref="post")  # DELETE IN THE FUTURE
@@ -73,6 +73,9 @@ class PostDetail(db.Model):
   vote_selects = db.relationship("VoteSelect", order_by="VoteSelect.id", backref="post_detail")
   vote_mjs = db.relationship("VoteMj", backref="post_detail")
   mj_options = db.relationship("MjOption", backref="post_detail")
+
+  def __repr__(self):
+      return '<PostDetail %s>' % self.id
 
 
 
