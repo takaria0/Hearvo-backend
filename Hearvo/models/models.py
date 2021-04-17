@@ -39,7 +39,9 @@ class Post(db.Model):
 
   # One to Many
   # primary_join argument replace the default join condition, which is basically Post.id==PostDetail.post_id .
-  post_details = db.relationship("PostDetail", primaryjoin="Post.id==PostDetail.post_id", foreign_keys=id)
+  post_details = db.relationship("PostDetail", primaryjoin="Post.id==PostDetail.post_id", foreign_keys=id, uselist=True)
+  target_post_detail = db.relationship("PostDetail", primaryjoin="Post.id==PostDetail.post_id", foreign_keys=id, uselist=False, lazy='subquery',)
+  # post_details = db.relationship("PostDetail", backref="post_details")
   current_post_detail = db.relationship("PostDetail", backref="post", primaryjoin="and_(Post.id==PostDetail.post_id, Post.current_post_detail_id==PostDetail.id)", foreign_keys="[Post.id, Post.current_post_detail_id]")
   vote_selects = db.relationship("VoteSelect", order_by="VoteSelect.id", backref="post") # DELETE IN THE FUTURE
   vote_mjs = db.relationship("VoteMj", backref="post")  # DELETE IN THE FUTURE

@@ -22,6 +22,7 @@ if setting == "dev":
   port = os.environ['POSTGRES_PORT']
 
   APP_PORT = int(os.environ.get('PORT', 8080))
+  RECREATE_POLL_LIMIT_DAYS = os.environ['RECREATE_POLL_LIMIT_DAYS']
   DEBUG_SETTING = True
 
   SQLALCHEMY_DATABASE_URI = "postgresql+psycopg2://{user}:{password}@{host}:{port}/{database}".format(
@@ -42,6 +43,7 @@ elif setting == "prod":
   ALLOW_ORIGIN_LIST = ["https://hearvo.com", "https://jp.hearvo.com", "https://us.hearvo.com"] # add later to enable cors access fron 
 
   APP_PORT = int(os.environ.get('PORT', 8080))
+  RECREATE_POLL_LIMIT_DAYS = os.environ['RECREATE_POLL_LIMIT_DAYS']
   DEBUG_SETTING = False
 
   DATABASE_URL = os.environ['DATABASE_URL']

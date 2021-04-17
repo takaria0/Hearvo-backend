@@ -8,11 +8,12 @@ import traceback
 from flask import request, Response, abort, jsonify, Blueprint
 from flask_restful import Resource
 from flask_jwt_extended import jwt_required, get_jwt_identity, jwt_optional, verify_jwt_in_request_optional
-from sqlalchemy import or_
+from sqlalchemy import or_, and_
+from sqlalchemy.orm import lazyload, selectinload, with_loader_criteria
 
 import Hearvo.config as config
 from ..app import logger, cache, limiter
-from ..models import db, Post, PostDetail, PostSchema, VoteSelect, VoteSelectUser, UserInfoPostVoted, UserInfo, VoteMj, MjOption, VoteMjUser, Topic, PostTopic, PostGroup, Group, UserInfoPostVotedSchema, UserInfoGroup, UserInfoTopic, TopicSchema, VoteSelectSchema
+from ..models import db, Post, PostDetail, PostSchema, VoteSelect, VoteSelectUser, UserInfoPostVoted, UserInfo, VoteMj, MjOption, VoteMjUser, Topic, PostTopic, PostGroup, Group, UserInfoPostVotedSchema, UserInfoGroup, UserInfoTopic, TopicSchema, VoteSelectSchema, PostDetailSchema
 
 from .logger_api import logger_api
 from Hearvo.middlewares.detect_language import get_country_id
@@ -100,25 +101,51 @@ class PostResource(Resource):
 
 
     """
-     get single post based on the post_id
-     rubbish code. need to update
+    get single post based on the post_id and post_detail_id
+    if post_detail_id is present, add 'target_post_detail' data
     """
     if "id" in request.args.keys():
-      # do_filter = request.args["do_filter"] if "do_filter" in request.args.keys() else "no"
+      try:
+        id = int(request.args["id"])
+        target_post_detail_id = int(request.args["post_detail_id"]) if "post_detail_id" in request.args.keys() else None
+      except:
+        return {}, 400
+      """
+      check if the post_detail exists or not
+      """
+      if target_post_detail_id:
+        check_post_detail = PostDetail.query.filter(Post.id==id, PostDetail.id==target_post_detail_id).first()
+      else:
+        check_post_detail = None
 
-      id = request.args["id"]
-      post = Post.query.filter_by(id=id, parent_id=None) \
-        .join(PostDetail, Post.id==PostDetail.post_id, isouter=True) \
-        .first()
-      status_code = 200
-      post_obj = post_schema.dump(post)
+      """
+      if exists, add target_post_detail data
+      """
+      if check_post_detail:
+        post = Post.query.filter_by(id=id, parent_id=None) \
+          .options(
+            lazyload(Post.target_post_detail),
+            with_loader_criteria(PostDetail, PostDetail.id == target_post_detail_id) # Add another filtering option to an existing relationship 
+          ) \
+          .first()
+        post_details = PostDetail.query.filter_by(post_id=id).all()
+        post.post_details = post_details
+        post_obj = post_schema.dump(post)
+        # post_obj["current_post_detail"] = post_obj["target_post_detail"] # What should I do?
+        post_detail_id = target_post_detail_id
+      else:
+        post = Post.query.filter_by(id=id, parent_id=None) \
+          .join(PostDetail, Post.id==PostDetail.post_id, isouter=True) \
+          .first()
+        post_obj = post_schema.dump(post)
+        post_detail_id = post_obj["current_post_detail"]["id"]
+        post_obj["target_post_detail"] = None
 
-      post_detail_id = post_obj["current_post_detail"]["id"]
-      count_vote_obj = count_vote_ver2(post_obj, user_info_id)[0]
+      count_vote_obj = count_vote_ver2(post_obj, user_info_id, )[0]
       count_vote_obj["gender_distribution"] = get_gender_distribution(post_detail_id)
       count_vote_obj["age_distribution"] = get_age_distribution(post_detail_id)
       count_vote_obj["my_vote"] = get_my_vote(post_detail_id, user_info_id)
-      return count_vote_obj, status_code
+      return count_vote_obj, 200
 
       # if do_filter == "yes":
       #   logger_api("do_filter", request.args)
@@ -193,7 +220,6 @@ class PostResource(Resource):
         else:
           posts = Post.query.filter_by(country_id=country_id, parent_id=None) \
           .join(Post.current_post_detail) \
-          .filter(PostDetail.created_at > yesterday_datetime) \
           .join(PostTopic, PostTopic.post_id == Post.id, isouter=True) \
           .join(UserInfoTopic, UserInfoTopic.topic_id == PostTopic.topic_id, isouter=True) \
           .filter(UserInfoTopic.user_info_id == user_info_id) \
@@ -372,13 +398,16 @@ class PostResource(Resource):
       """
       if id, recreate a poll
       """
-      # try:
-      handle_recreate(data, user_info_id, country_id)
-      db.session.commit()
-      return {"message": "successfully recreated a post"}, 200
-      # except:
-      #   db.session.rollback()
-      #   return {}, 400
+      try:
+        handle_recreate(data, user_info_id, country_id)
+        db.session.commit()
+        return {"message": "successfully recreated a post"}, 200
+      except NameError:
+        db.session.rollback()
+        return {"message": "wait 30 days to recreate"}, 400
+      except:
+        db.session.rollback()
+        return {"message": "failed to recreate a post"}, 400
 
     else:
       """
@@ -531,6 +560,17 @@ def handle_create(data, user_info_id, country_id, vote_type_id, group_id):
   #     return {}, 400
   return
 
+def check_recreate_condition(data):
+  last_post_detail = PostDetail.query.filter_by(post_id=data["id"]).order_by(PostDetail.id.desc()).first()
+  last_end_at = datetime.fromisoformat(str(last_post_detail.end_at))
+  last_end_at = last_end_at.replace(tzinfo=timezone(timedelta(days=0), 'UTC')) # as timezone UTC
+  plus_30_days = timedelta(days=int(config.RECREATE_POLL_LIMIT_DAYS))
+  last_end_at = last_end_at + plus_30_days
+  current_datetime = datetime.now(timezone(timedelta(hours=0), 'UTC')) # as timezone UTC
+  can_recreate = True if current_datetime > last_end_at else False
+  if not can_recreate:
+    raise NameError("can not recreate a poll until 30 days have passed from the last poll")
+  return
 
 
 def handle_recreate(data, user_info_id, country_id):
@@ -546,11 +586,7 @@ def handle_recreate(data, user_info_id, country_id):
   """
   post_obj = Post.query.get(data["id"])
   vote_type_id = str(post_obj.vote_type_id)
-  current_datetime = datetime.now(timezone(timedelta(hours=0), 'UTC'))
-  ########################
-  ## TODO: write this
-  ########################
-
+  check_recreate_condition(data)
 
   """
   simple vote
@@ -984,7 +1020,7 @@ def save_unique_topic(topic_list, country_id, post_id, group_id):
   return topic_ids
 
 
-def count_vote_ver2(posts, user_info_id, is_parent=False):
+def count_vote_ver2(posts, user_info_id, is_parent=False, target_post_detail_id=None):
   """
   rewriting count_vote to optimize performance 
   count votes of the post
@@ -1004,12 +1040,14 @@ def count_vote_ver2(posts, user_info_id, is_parent=False):
     vote_type_id = post["vote_type"]["id"]
 
     if vote_type_id == 1:
-      logger.error("post['post_details']")
-      logger.error(post['post_details'])
       """
       DB access
       """
-      vote_selects_obj = post["current_post_detail"]["vote_selects"] if post["current_post_detail"] else []
+      if target_post_detail_id:
+        vote_selects_obj = post["target_post_detail"]["vote_selects"] if post["target_post_detail"] else []
+      else:
+        vote_selects_obj = post["current_post_detail"]["vote_selects"] if post["current_post_detail"] else []
+      
       vote_select_ids = [obj["id"] for obj in vote_selects_obj]
       vote_selects_count = [{"vote_select_id": obj["id"], "count": obj["count"],
                              "content": obj["content"]} for obj in vote_selects_obj]

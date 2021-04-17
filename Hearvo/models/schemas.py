@@ -135,10 +135,9 @@ class CommentSchema(SQLAlchemyAutoSchema):
 class MultiplePostDetailSchema(SQLAlchemyAutoSchema):
   class Meta:
     model = PostDetail
-    include_relationships = False
-    include_fk = False
-    exclude = ("created_at", "updated_at")
-
+    include_relationships = True
+    include_fk = True
+    exclude = ("created_at", "updated_at", "vote_selects", "vote_mjs", "mj_options", "post", "post_id", "user_info_id")
 
 class PostDetailSchema(SQLAlchemyAutoSchema):
   class Meta:
@@ -159,7 +158,8 @@ class PostSchema(SQLAlchemyAutoSchema):
     include_fk = True
     exclude = ("vote_selects",)
     
-  post_details = Nested(MultiplePostDetailSchema, many=False) # many=True yield an error, why?????
+  post_details = Nested(MultiplePostDetailSchema, many=True) # many=True yield an error, why????? -> uselist=True
+  target_post_detail = Nested(PostDetailSchema, many=False)
   current_post_detail = Nested(PostDetailSchema, many=False)
   topics = Nested(PostTopicSchema, many=True)
   vote_type = Nested(VoteTypeSchema(many=False))

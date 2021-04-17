@@ -25,6 +25,7 @@ services:
       POSTGRES_PORT: 5432
       POSTGRES_DB: hearvo_dev
       PYTHONUNBUFFERED: 0
+      RECREATE_POLL_LIMIT_DAYS: 0
 
     volumes:
       - ./Hearvo:/app/Hearvo
