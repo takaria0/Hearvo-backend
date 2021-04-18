@@ -25,12 +25,13 @@ services:
       POSTGRES_PORT: 5432
       POSTGRES_DB: hearvo_dev
       PYTHONUNBUFFERED: 0
-      RECREATE_POLL_LIMIT_DAYS: 0
+      RECREATE_POLL_LIMIT_DAYS: 30
 
     volumes:
       - ./Hearvo:/app/Hearvo
       - ./migrations:/app/migrations
       - ./run.py:/app/run.py
+      - ./add_post_detail.py:/app/add_post_detail.py
     
 
   postgres:

@@ -136,7 +136,18 @@ class VoteSelectUserResource(Resource):
     current_post_detail_id = post_obj.current_post_detail_id
     post_detail_obj = PostDetail.query.get(current_post_detail_id)
 
-    # Update VoteSelect Count
+    
+    """
+    check end at
+    """
+    current_datetime = datetime.now(timezone(timedelta(hours=0), 'UTC'))
+    end_at = datetime.fromisoformat(str(post_detail_obj.end_at)).replace(tzinfo=timezone(timedelta(days=0), 'UTC'))
+    if current_datetime > end_at:
+      return {}, 400
+
+    """
+    Update VoteSelect Count
+    """
     vote_select_obj = VoteSelect.query.filter_by(id=vote_select_id).first()
     vote_select_obj.count = vote_select_obj.count + 1
 
@@ -205,6 +216,14 @@ class MultipleVoteUsersResource(Resource):
     parent_detail_obj = PostDetail.query.get(current_parent_post_detail_id)
 
     """
+    check end at
+    """
+    current_datetime = datetime.now(timezone(timedelta(hours=0), 'UTC'))
+    end_at = datetime.fromisoformat(str(parent_detail_obj.end_at)).replace(tzinfo=timezone(timedelta(days=0), 'UTC'))
+    if current_datetime > end_at:
+      return {}, 400
+
+    """
     check if the user has already voted for the post
     """
     check_obj = UserInfoPostVoted.query.filter_by(post_id=parent_id, post_detail_id=current_parent_post_detail_id,user_info_id=user_info_id).count()
@@ -220,14 +239,18 @@ class MultipleVoteUsersResource(Resource):
     update_vote_select_list = []
     new_vote_select_list = []
     user_info_post_voted_list = []
+    chidren_post_detail_list = []
     for each in result:
       each_post_obj = Post.query.get(each["post_id"])
       current_post_detail_id = each_post_obj.current_post_detail_id
+      child_post_detail = PostDetail.query.get(current_post_detail_id)
       """
-      update count of VoteSelect
+      update count of VoteSelect and PostDetail
       """
       vote_select_obj = VoteSelect.query.get(each["vote_select_id"])
       vote_select_obj.count = vote_select_obj.count + 1
+      child_post_detail.num_vote = child_post_detail.num_vote + 1
+      chidren_post_detail_list.append(child_post_detail)
       update_vote_select_list.append(vote_select_obj)
 
       new_vote_select_list.append(
@@ -268,6 +291,7 @@ class MultipleVoteUsersResource(Resource):
 
     try:
       db.session.add_all(update_vote_select_list)
+      db.session.add_all(chidren_post_detail_list)
       db.session.bulk_save_objects(new_vote_select_list)
       db.session.bulk_save_objects(user_info_post_voted_list)
       db.session.add(parent_detail_obj)

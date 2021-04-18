@@ -75,14 +75,48 @@ class PostResource(Resource):
     get vote_type 3 children posts based on parent_id
     """
     if "parent_id" in request.args.keys():
+      # try:
+      parent_id = request.args["parent_id"]
+      
       try:
-        parent_id = request.args["parent_id"]
-        posts = Post.query.filter_by(parent_id=parent_id).all()
-        post_obj = posts_schema.dump(posts)
-        count_vote_obj = count_vote_ver2(post_obj, user_info_id, is_parent=True)
-        return count_vote_obj, 200
+        target_post_detail_id = int(request.args["post_detail_id"]) if "post_detail_id" in request.args.keys() else None
       except:
-        return {}, 400
+        target_post_detail_id = None
+
+      if target_post_detail_id:
+        """
+        use target post detail id
+        """        
+        posts = Post.query.filter_by(parent_id=parent_id).all()
+        post_detail_obj = PostDetail.query.get(target_post_detail_id)
+        """
+        insert children's target post_detail obj
+        """
+        for post in posts:
+          child_post_detail = PostDetail.query.filter_by(end_at=post_detail_obj.end_at, post_id=post.id).first()
+          post.target_post_detail_id = child_post_detail.id
+          post.target_post_detail = child_post_detail
+
+      else:
+        """
+        use current post detail id
+        """
+        posts = Post.query.filter_by(parent_id=parent_id).all()
+        parent_post = Post.query.get(parent_id)
+        parent_post_detail = PostDetail.query.filter_by(id=parent_post.current_post_detail_id).first()
+        """
+        insert children's target post_detail obj
+        """
+        for post in posts:
+          child_post_detail = PostDetail.query.filter_by(end_at=parent_post_detail.end_at, post_id=post.id).first()
+          post.target_post_detail_id = child_post_detail.id
+          post.target_post_detail = child_post_detail
+
+      post_obj_list = posts_schema.dump(posts)
+      count_vote_obj = count_vote_ver2(post_obj_list, user_info_id, is_parent=True, target_post_detail_id=1000000000)
+      return count_vote_obj, 200
+      # except:
+      #   return {}, 400
 
     """ 
     group id is None if the user has not joined the group, or, if the user has not created the account yet. 
@@ -141,7 +175,7 @@ class PostResource(Resource):
         post_detail_id = post_obj["current_post_detail"]["id"]
         post_obj["target_post_detail"] = None
 
-      count_vote_obj = count_vote_ver2(post_obj, user_info_id, )[0]
+      count_vote_obj = count_vote_ver2(post_obj, user_info_id, target_post_detail_id=target_post_detail_id)[0]
       count_vote_obj["gender_distribution"] = get_gender_distribution(post_detail_id)
       count_vote_obj["age_distribution"] = get_age_distribution(post_detail_id)
       count_vote_obj["my_vote"] = get_my_vote(post_detail_id, user_info_id)
@@ -847,7 +881,7 @@ def handle_vote_type_3(data, country_id, user_info_id, group_id):
     """
     new_child_post_detail = PostDetail(
       user_info_id=user_info_id,
-      post_id=parent_id,
+      post_id=children_id,
       start_at=start_at,
       end_at=end_at,
       created_at=datetime.now(timezone(timedelta(hours=0), 'UTC')).isoformat(),
@@ -1043,10 +1077,18 @@ def count_vote_ver2(posts, user_info_id, is_parent=False, target_post_detail_id=
       """
       DB access
       """
-      if target_post_detail_id:
+      if is_parent and target_post_detail_id:
         vote_selects_obj = post["target_post_detail"]["vote_selects"] if post["target_post_detail"] else []
+        end_at = post["target_post_detail"]["end_at"]
+        post_detail_id = post["target_post_detail"]["id"]
+      elif target_post_detail_id:
+        vote_selects_obj = post["target_post_detail"]["vote_selects"] if post["target_post_detail"] else []
+        end_at = post["target_post_detail"]["end_at"]
+        post_detail_id = post["target_post_detail"]["id"]
       else:
         vote_selects_obj = post["current_post_detail"]["vote_selects"] if post["current_post_detail"] else []
+        end_at = post["current_post_detail"]["end_at"]
+        post["target_post_detail"] = None
       
       vote_select_ids = [obj["id"] for obj in vote_selects_obj]
       vote_selects_count = [{"vote_select_id": obj["id"], "count": obj["count"],
@@ -1059,7 +1101,7 @@ def count_vote_ver2(posts, user_info_id, is_parent=False, target_post_detail_id=
       already_voted = True if UserInfoPostVoted.query.filter_by(user_info_id=user_info_id, post_detail_id=post_detail_id).count() > 0 else False
 
       current_datetime = datetime.now(timezone(timedelta(hours=0), 'UTC'))
-      end_datetime = datetime.fromisoformat(post["end_at"])
+      end_datetime = datetime.fromisoformat(end_at)
       end_datetime = end_datetime.replace(tzinfo=timezone(timedelta(hours=0), 'UTC'))
 
       vote_period_end = True if current_datetime > end_datetime else False
