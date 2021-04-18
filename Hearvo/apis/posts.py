@@ -1165,19 +1165,20 @@ def count_vote_ver2(posts, user_info_id, is_parent=False, target_post_detail_id=
       pass
 
     elif vote_type_id == 3:
+      post_detail_id = target_post_detail_id if target_post_detail_id else post["current_post_detail_id"]
+      end_datetime = post["target_post_detail"]["end_at"] if target_post_detail_id else post["current_post_detail"]["end_at"]
+      """
+      DB access
+      """
+      total_vote = UserInfoPostVoted.query.filter_by(post_detail_id=post_detail_id).count()
 
       """
       DB access
       """
-      total_vote = UserInfoPostVoted.query.filter_by(post_id=post_id).count()
-
-      """
-      DB access
-      """
-      num_of_user_info_post_voted = UserInfoPostVoted.query.filter_by(user_info_id=user_info_id, post_id=post_id).count()
+      num_of_user_info_post_voted = UserInfoPostVoted.query.filter_by(user_info_id=user_info_id, post_detail_id=post_detail_id).count()
       already_voted = True if num_of_user_info_post_voted > 0 else False
       current_datetime = datetime.now(timezone(timedelta(hours=0), 'UTC'))
-      end_datetime = datetime.fromisoformat(post["end_at"])
+      end_datetime = datetime.fromisoformat(end_datetime)
       end_datetime = end_datetime.replace(tzinfo=timezone(timedelta(hours=0), 'UTC'))
       vote_period_end = True if current_datetime > end_datetime else False
 
