@@ -47,6 +47,8 @@ elif setting == "prod":
   DEBUG_SETTING = False
 
   DATABASE_URL = os.environ['DATABASE_URL']
+  if DATABASE_URL.startswith("postgres://"): # Heroku does not support ENV DATABASE_URL change 
+    DATABASE_URL = DATABASE_URL.replace("postgres://", "postgresql://", 1)
 
   SQLALCHEMY_DATABASE_URI = DATABASE_URL
   
