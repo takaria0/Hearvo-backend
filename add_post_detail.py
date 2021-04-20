@@ -3,7 +3,7 @@ DO NOT RUN THIS SCRIPT
 """
 
 
-raise NameError("You have to delete this error to run this script.")
+# raise NameError("You have to delete this error to run this script.")
 
 
 
