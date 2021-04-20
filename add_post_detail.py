@@ -2,12 +2,11 @@
 DO NOT RUN THIS SCRIPT
 """
 
-
-# raise NameError("You have to delete this error to run this script.")
-
+raise NameError("You have to delete this error to run this script.")
 
 
 from Hearvo.models import db, PostDetail, Post, VoteSelect, UserInfoPostVoted, VoteSelectUser
+
 
 try:
   posts = Post.query.filter_by(current_post_detail_id=None).all()
