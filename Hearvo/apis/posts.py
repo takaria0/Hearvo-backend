@@ -109,7 +109,7 @@ class PostResource(Resource):
         """
         for post in posts:
           child_post_detail = PostDetail.query.filter_by(end_at=parent_post_detail.end_at, post_id=post.id).first()
-          post.target_post_detail_id = child_post_detail.id
+          post.target_post_detail.id = child_post_detail.id
           post.target_post_detail = child_post_detail
 
       post_obj_list = posts_schema.dump(posts)
