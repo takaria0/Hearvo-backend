@@ -63,17 +63,28 @@ class UserResource(Resource):
       gender = request.json["gender"]
       birth_year = request.json["birth_year"]
       gender_detail = request.json["gender_detail"]
-      # occupation = request.json["occupation"]
+      first_name = request.json["first_name"]
+      middle_name = request.json["middle_name"]
+      last_name = request.json["last_name"]
+
 
       """ can't update anymore because: """
       if (user_info_obj.gender != None) or (user_info_obj.birth_year != None):
+        return {}, 409
+      
+      if (len(first_name) < 1) or (len(first_name) > 100):
+        return {}, 400
+
+      if (len(last_name) < 1) or (len(last_name) > 100):
         return {}, 400
 
       # UPDATE USER 
       user_info_obj.gender = gender
       user_info_obj.birth_year = birth_year
       user_info_obj.gender_detail = gender_detail
-      # user_info_obj.occupation = occupation
+      user_info_obj.first_name = first_name
+      user_info_obj.middle_name = middle_name
+      user_info_obj.last_name = last_name
 
       try:
         db.session.add(user_info_obj)

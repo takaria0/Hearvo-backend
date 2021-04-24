@@ -15,7 +15,7 @@ services:
     environment:
       TZ: Asia/Tokyo
       FLASK_APP: run
-      ENVIRONMENT: "dev"
+      ENVIRONMENT: dev
       DEBUG: "True"
       SECRET_KEY: aaaabbbbcccc
       GOOGLE_OAUTH_CLIENT_ID: 984877314328-2kvinv2q3o9bgstfjherl42t7gf1rc05.apps.googleusercontent.com
@@ -31,7 +31,6 @@ services:
       - ./Hearvo:/app/Hearvo
       - ./migrations:/app/migrations
       - ./run.py:/app/run.py
-      - ./add_post_detail.py:/app/add_post_detail.py
     
 
   postgres:
