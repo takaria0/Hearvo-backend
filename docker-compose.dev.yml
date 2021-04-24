@@ -31,7 +31,6 @@ services:
       - ./Hearvo:/app/Hearvo
       - ./migrations:/app/migrations
       - ./run.py:/app/run.py
-      - ./add_post_detail.py:/app/add_post_detail.py
     
 
   postgres:

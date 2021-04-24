@@ -111,6 +111,9 @@ class UserInfo(db.Model):
   string_id = db.Column(db.String(20), unique=True)
   name = db.Column(db.String(100))
   profile_name = db.Column(db.String(100))
+  first_name = db.Column(db.String(100))
+  middle_name = db.Column(db.String(100))
+  last_name = db.Column(db.String(100))
   description = db.Column(db.String(300))
   occupation = db.Column(db.String(100))
   gender = db.Column(db.BigInteger, primary_key=False) # 0 male, 1 female, 2 others
