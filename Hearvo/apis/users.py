@@ -70,7 +70,7 @@ class UserResource(Resource):
 
       """ can't update anymore because: """
       if (user_info_obj.gender != None) or (user_info_obj.birth_year != None):
-        return {}, 400
+        return {}, 409
       
       if (len(first_name) < 1) or (len(first_name) > 100):
         return {}, 400
