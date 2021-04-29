@@ -629,7 +629,14 @@ def handle_recreate(data, user_info_id, country_id):
     end_at = data["end_at"]
     post_id = data["id"]
 
-    # TODO: ADD VALIDATION
+    """
+    update topic update_at
+    """
+    topic_list_obj = PostTopic.query.filter_by(post_id=post_id).all()
+    updated_topic_list_obj = []
+    for topic_obj in topic_list_obj:
+      topic_obj.updated_at = datetime.now(timezone(timedelta(hours=0), 'UTC')).isoformat()
+      updated_topic_list_obj.append(topic_obj)
 
     new_post_detail = PostDetail(
       user_info_id=user_info_id,
@@ -658,6 +665,7 @@ def handle_recreate(data, user_info_id, country_id):
       for obj in vote_selects]
 
     db.session.add(post_obj)
+    db.session.add_all(updated_topic_list_obj)
     db.session.add_all(new_vote_selects)
     db.session.commit()
     return
@@ -668,6 +676,15 @@ def handle_recreate(data, user_info_id, country_id):
   if vote_type_id == "3":
     end_at = data["end_at"]
     parent_id = data["id"]
+
+    """
+    update topic update_at
+    """
+    topic_list_obj = PostTopic.query.filter_by(post_id=parent_id).all()
+    updated_topic_list_obj = []
+    for topic_obj in topic_list_obj:
+      topic_obj.updated_at = datetime.now(timezone(timedelta(hours=0), 'UTC')).isoformat()
+      updated_topic_list_obj.append(topic_obj)
 
     """
     parent
@@ -718,6 +735,9 @@ def handle_recreate(data, user_info_id, country_id):
         for obj in vote_selects]
       db.session.add(child)
       db.session.add_all(new_vote_selects)
+
+    db.session.add_all(db.session.add_all(updated_topic_list_obj))
+    return
 
   return
 
@@ -1047,7 +1067,8 @@ def save_unique_topic(topic_list, country_id, post_id, group_id):
     post_topic_data = [PostTopic(
       post_id=post_id,
       topic_id=tp_id,
-      created_at=datetime.now(timezone(timedelta(hours=0), 'UTC')).isoformat()
+      created_at=datetime.now(timezone(timedelta(hours=0), 'UTC')).isoformat(),
+      updated_at=datetime.now(timezone(timedelta(hours=0), 'UTC')).isoformat()
       ) for tp_id in topic_ids]
     db.session.bulk_save_objects(post_topic_data)
 

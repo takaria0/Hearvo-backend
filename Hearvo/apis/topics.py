@@ -51,7 +51,7 @@ class TopicResource(Resource):
         .join(PostTopic, PostTopic.topic_id == Topic.id, isouter=True) \
         .order_by(func.count(PostTopic.topic_id).desc()) \
         .group_by(Topic.id, PostTopic.topic_id) \
-        .filter(PostTopic.created_at > yesterday_datetime, Topic.country_id == country_id) \
+        .filter(PostTopic.updated_at > yesterday_datetime, Topic.country_id == country_id) \
         .limit(10) \
         .all()
 
