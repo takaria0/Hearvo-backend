@@ -122,6 +122,7 @@ class UserInfo(db.Model):
   birthday = db.Column(db.DateTime)
   birth_year = db.Column(db.BigInteger)
   login_count = db.Column(db.BigInteger, default=0)
+  hide_realname = db.Column(db.Boolean, default=False)
   created_at = db.Column(db.DateTime, default=datetime.now(timezone(timedelta(hours=0), 'UTC')).isoformat())
   updated_at = db.Column(db.DateTime, default=datetime.now(timezone(timedelta(hours=0), 'UTC')).isoformat(), onupdate=datetime.now(timezone(timedelta(hours=0), 'UTC')).isoformat())
 

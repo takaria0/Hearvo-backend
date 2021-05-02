@@ -31,6 +31,60 @@ class UserResource(Resource):
   def get(self):
     user_info_id = get_jwt_identity()
 
+    """
+    get user list who voted a poll
+    """
+    if "post_detail_id" in request.args.keys():
+      post_detail_id = request.args["post_detail_id"]
+      user_info_list = UserInfo.query.join(UserInfoPostVoted).filter_by(post_detail_id=post_detail_id).all()
+
+      result = []
+      for user_info in user_info_list:
+        """
+        check hide real name setting
+        """
+        if user_info.hide_realname == False:
+          profile_name = user_info.first_name + " " + user_info.middle_name + " " + user_info.last_name
+          name = user_info.name
+          is_real_name = True
+        else:
+          profile_name = user_info.profile_name
+          name = user_info.name
+          is_real_name = False
+        result.append({"user_info_id": user_info.id, "profile_name": profile_name, "name": name, "is_real_name": is_real_name})
+
+      return result, 200
+  
+    """
+    get specific user's profile infomation
+    """
+    if "name" in request.args.keys():
+      name = request.args["name"]
+      user_info = UserInfo.query.filter_by(name=name).first()
+      
+      if user_info == None:
+        return {}, 400
+
+      """
+      check hide real name setting
+      """
+      if user_info.hide_realname == False:
+        result = { "user_info_id": user_info.id, "name": user_info.name, "profile_name": user_info.profile_name, "first_name": user_info.first_name, "middle_name": user_info.middle_name, "last_name": user_info.last_name, "created_at": user_info.created_at.isoformat(), "description": user_info.description }
+      else:
+        result = { "user_info_id": user_info.id, "name": user_info.name, "profile_name": user_info.profile_name, "first_name": None, "middle_name": None, "last_name": None, "created_at": user_info.created_at.isoformat(), "description": user_info.description }
+      
+      """
+      if the user is me
+      """
+      num_of_following_topics = UserInfoTopic.query.filter_by(user_info_id=user_info_id).count()
+      num_of_votes = UserInfoPostVoted.query.filter_by(user_info_id=user_info_id).count()
+      if str(user_info_id) == str(user_info.id):
+        result = { **result, "num_of_following_topics": num_of_following_topics, "num_of_votes": num_of_votes, "myprofile": True }
+      else:
+        result = { **result, "num_of_following_topics": num_of_following_topics, "num_of_votes": num_of_votes,"myprofile": False }
+      return result, 200
+    
+
     if "profile_detail" in request.args.keys():
       following_topics = UserInfoTopic.query.filter_by(user_info_id=user_info_id).all()
       num_of_votes = UserInfoPostVoted.query.filter_by(user_info_id=user_info_id).all()
