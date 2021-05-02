@@ -77,8 +77,23 @@ class CommentResource(Resource):
       else:
         comments = Comment.query.filter_by(post_id=post_id).join(CommentFav, and_(Comment.id == CommentFav.comment_id, CommentFav.user_info_id == user_info_id), isouter=True).order_by(Comment.created_at.desc()).limit(100).all()
 
-      status_code = 200
-      return comments_schema.dump(comments), status_code
+      comment_list = comments_schema.dump(comments)
+
+      """
+      hide user info based on hide realname column
+      """
+      result = []
+      for comment in comment_list:
+
+        if comment["user_info"]["hide_realname"] == True:
+          profile_name = comment["user_info"]["profile_name"]
+          comment["user_info"] = {"name": comment["user_info"]["name"], "profile_name": profile_name}
+          result.append(comment)
+        else:
+          profile_name = comment["user_info"]["first_name"] + " " + comment["user_info"]["middle_name"] + " " + comment["user_info"]["last_name"]
+          comment["user_info"] = {"name": comment["user_info"]["name"], "profile_name": profile_name}
+          result.append(comment)
+      return result, 200
 
     else:
       status_code = 400
