@@ -7,6 +7,7 @@ from datetime import datetime, timedelta, timezone
 from sqlalchemy import and_
 
 import Hearvo.config as config
+from ..utils import concat_realname
 from ..app import logger
 from ..models import db, Comment, CommentSchema, VoteSelect, CommentFav
 from .logger_api import logger_api
@@ -90,7 +91,7 @@ class CommentResource(Resource):
           comment["user_info"] = {"name": comment["user_info"]["name"], "profile_name": profile_name}
           result.append(comment)
         else:
-          profile_name = comment["user_info"]["first_name"] + " " + comment["user_info"]["middle_name"] + " " + comment["user_info"]["last_name"]
+          profile_name = concat_realname(comment["user_info"]["first_name"], comment["user_info"]["middle_name"], comment["user_info"]["last_name"])
           comment["user_info"] = {"name": comment["user_info"]["name"], "profile_name": profile_name}
           result.append(comment)
       return result, 200

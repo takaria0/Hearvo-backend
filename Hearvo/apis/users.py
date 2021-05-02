@@ -6,6 +6,7 @@ from flask_jwt_extended import jwt_required, get_jwt_identity, jwt_optional
 import bcrypt
 
 import Hearvo.config as config
+from ..utils import concat_realname
 from ..app import logger
 from ..models import db, User, UserGETSchema, UserInfo, UserInfoGETSchema, UserInfoPostVoted, UserInfoTopic
 from Hearvo.middlewares.detect_language import get_country_id
@@ -44,7 +45,7 @@ class UserResource(Resource):
         check hide real name setting
         """
         if user_info.hide_realname == False:
-          profile_name = user_info.first_name + " " + user_info.middle_name + " " + user_info.last_name
+          profile_name = concat_realname(user_info.first_name, user_info.middle_name, user_info.last_name)
           name = user_info.name
           is_real_name = True
         else:
@@ -275,5 +276,4 @@ class UserPasswordResource(Resource):
       db.session.rollback()
       status_code = 400
       return {}, status_code
-
 
