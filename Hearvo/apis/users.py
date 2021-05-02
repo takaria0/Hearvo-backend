@@ -61,7 +61,8 @@ class UserResource(Resource):
     """
     if "name" in request.args.keys():
       name = request.args["name"]
-      user_info = UserInfo.query.filter_by(name=name).first()
+      country_id = get_country_id(request)
+      user_info = UserInfo.query.filter_by(name=name, country_id=country_id).first()
       
       if user_info == None:
         return {}, 400
@@ -165,7 +166,8 @@ class UserResource(Resource):
       """
       check duplication
       """
-      check_dup = UserInfo.query.filter(UserInfo.profile_name==profile_name, UserInfo.id != user_info_id).first()
+      country_id = get_country_id(request)
+      check_dup = UserInfo.query.filter(UserInfo.profile_name==profile_name, UserInfo.id != user_info_id, UserInfo.country_id==country_id).first()
       if check_dup:
         return {}, 400
 
