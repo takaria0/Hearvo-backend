@@ -2,7 +2,7 @@ import os
 
 from flask import request, Response, abort, jsonify, Blueprint
 from flask_restful import Resource
-from flask_jwt_extended import jwt_required, get_jwt_identity
+from flask_jwt_extended import jwt_required, get_jwt_identity, jwt_optional
 import bcrypt
 
 import Hearvo.config as config
@@ -27,7 +27,7 @@ users_info_schema = UserInfoGETSchema(many=True)
 # Routes to handle API
 #########################################
 class UserResource(Resource):
-  @jwt_required
+  @jwt_optional
   def get(self):
     user_info_id = get_jwt_identity()
 
@@ -92,6 +92,8 @@ class UserResource(Resource):
       user = user_info_schema.dump(user)
       return { **user, "num_of_following_topics": len(following_topics), "num_of_votes": len(num_of_votes) }, 200
 
+    if user_info_id is None:
+      return {}, 400
 
     user = UserInfo.query.filter_by(id=user_info_id).first()
     return user_info_schema.dump(user), 200
@@ -153,9 +155,18 @@ class UserResource(Resource):
 
     elif "edit_profile" in request.args.keys():
       profile_name = request.json["profile_name"]
+      description = request.json["description"]
 
       # UPDATE USER
       user_info_obj.profile_name = profile_name
+      user_info_obj.description = description
+
+      """
+      check duplication
+      """
+      check_dup = UserInfo.query.filter(UserInfo.profile_name==profile_name, UserInfo.id != user_info_id).first()
+      if check_dup:
+        return {}, 400
 
       try:
         db.session.add(user_info_obj)
