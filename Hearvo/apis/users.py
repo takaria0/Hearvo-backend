@@ -37,7 +37,7 @@ class UserResource(Resource):
     """
     if "post_detail_id" in request.args.keys():
       post_detail_id = request.args["post_detail_id"]
-      user_info_list = UserInfo.query.join(UserInfoPostVoted).filter_by(post_detail_id=post_detail_id).all()
+      user_info_list = UserInfo.query.join(UserInfoPostVoted).filter_by(post_detail_id=post_detail_id).limit(30).all()
 
       result = []
       for user_info in user_info_list:
@@ -88,11 +88,11 @@ class UserResource(Resource):
     
 
     if "profile_detail" in request.args.keys():
-      following_topics = UserInfoTopic.query.filter_by(user_info_id=user_info_id).all()
-      num_of_votes = UserInfoPostVoted.query.filter_by(user_info_id=user_info_id).all()
+      num_of_following_topics = UserInfoTopic.query.filter_by(user_info_id=user_info_id).count()
+      num_of_votes = UserInfoPostVoted.query.filter_by(user_info_id=user_info_id).count()
       user = UserInfo.query.filter_by(id=user_info_id).first()
       user = user_info_schema.dump(user)
-      return { **user, "num_of_following_topics": len(following_topics), "num_of_votes": len(num_of_votes) }, 200
+      return { **user, "num_of_following_topics":num_of_following_topics, "num_of_votes": num_of_votes }, 200
 
     if user_info_id is None:
       return {}, 400
