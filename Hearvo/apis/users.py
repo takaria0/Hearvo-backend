@@ -52,7 +52,7 @@ class UserResource(Resource):
           profile_name = user_info.profile_name
           name = user_info.name
           is_real_name = False
-        result.append({"user_info_id": user_info.id, "profile_name": profile_name, "name": name, "is_real_name": is_real_name})
+        result.append({"user_info_id": user_info.id, "profile_name": profile_name, "name": name, "is_real_name": is_real_name, "description": user_info.description if user_info.description else "" })
 
       return result, 200
   
