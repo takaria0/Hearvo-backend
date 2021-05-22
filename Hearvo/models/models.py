@@ -91,6 +91,7 @@ class User(db.Model):
   google_id = db.Column(db.String(32), unique=True, nullable=True)
   name = db.Column(db.String(100), unique=True)
   email = db.Column(db.String(350), unique=True)
+  google_email = db.Column(db.String(350), unique=True, nullable=True)
   deleted_email = db.Column(db.String(350), unique=False)
   hashed_password = db.Column(db.String(150), nullable=True)
   created_at = db.Column(db.DateTime, default=datetime.now(timezone(timedelta(hours=0), 'UTC')).isoformat())
