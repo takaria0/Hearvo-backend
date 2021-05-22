@@ -129,6 +129,7 @@ class LoginResource(Resource):
           raise ValueError('Wrong issuer.')
 
       google_id = id_info['sub']
+      gmail = id_info['email']
 
       current_user = User.query.filter_by(google_id=google_id).first()
 
@@ -157,6 +158,7 @@ class LoginResource(Resource):
         new_user = User(
           name=generated_user_name,
           google_id=google_id,
+          google_email=gmail,
           created_at=datetime.now(timezone(timedelta(hours=0), 'UTC')).isoformat()
         )
 
