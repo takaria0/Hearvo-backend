@@ -67,23 +67,29 @@ class UserResource(Resource):
       if user_info == None:
         return {}, 400
 
+
       """
-      check hide real name setting
-      """
-      if user_info.hide_realname == False:
-        result = { "user_info_id": user_info.id, "name": user_info.name, "profile_name": user_info.profile_name, "first_name": user_info.first_name, "middle_name": user_info.middle_name, "last_name": user_info.last_name, "created_at": user_info.created_at.isoformat(), "description": user_info.description }
-      else:
-        result = { "user_info_id": user_info.id, "name": user_info.name, "profile_name": user_info.profile_name, "first_name": None, "middle_name": None, "last_name": None, "created_at": user_info.created_at.isoformat(), "description": user_info.description }
-      
-      """
-      if the user is me
+      if the user is me, always show the real name
       """
       num_of_following_topics = UserInfoTopic.query.filter_by(user_info_id=user_info_id).count()
       num_of_votes = UserInfoPostVoted.query.filter_by(user_info_id=user_info_id).count()
       if str(user_info_id) == str(user_info.id):
+        result = { "user_info_id": user_info.id, "name": user_info.name, "profile_name": user_info.profile_name, "first_name": user_info.first_name, "middle_name": user_info.middle_name, "last_name": user_info.last_name, "created_at": user_info.created_at.isoformat(), "description": user_info.description }
+        
         result = { **result, "num_of_following_topics": num_of_following_topics, "num_of_votes": num_of_votes, "myprofile": True }
       else:
+        """
+        if the user is not me, 
+        check hide real name setting and hide it if so.
+        """
+        if user_info.hide_realname == False:
+          result = { "user_info_id": user_info.id, "name": user_info.name, "profile_name": user_info.profile_name, "first_name": user_info.first_name, "middle_name": user_info.middle_name, "last_name": user_info.last_name, "created_at": user_info.created_at.isoformat(), "description": user_info.description }
+        else:
+          result = { "user_info_id": user_info.id, "name": user_info.name, "profile_name": user_info.profile_name, "first_name": None, "middle_name": None, "last_name": None, "created_at": user_info.created_at.isoformat(), "description": user_info.description }
+
         result = { **result, "num_of_following_topics": num_of_following_topics, "num_of_votes": num_of_votes,"myprofile": False }
+
+
       return result, 200
     
 
@@ -164,7 +170,7 @@ class UserResource(Resource):
       user_info_obj.description = description
 
       """
-      check duplication
+      check name duplication
       """
       country_id = get_country_id(request)
       check_dup = UserInfo.query.filter(UserInfo.profile_name==profile_name, UserInfo.id != user_info_id, UserInfo.country_id==country_id).first()
@@ -183,6 +189,24 @@ class UserResource(Resource):
         return {}, status_code
       return {}, 200
 
+    elif "edit_settings" in request.args.keys():
+      hide_realname = request.json["hideName"]
+
+      # UPDATE USER_INFO
+      user_info_obj.hide_realname = hide_realname
+
+      try:
+        db.session.add(user_info_obj)
+        db.session.commit()
+        status_code = 200
+        return user_info_schema.dump(user_info_obj), status_code
+        
+      except:
+        db.session.rollback()
+        status_code = 400
+        return {}, status_code
+
+      return
 
     else:
       gender = request.json["gender"]
