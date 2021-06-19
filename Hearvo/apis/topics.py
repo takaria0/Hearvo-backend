@@ -151,7 +151,7 @@ class UserInfoTopicResource(Resource):
     get user's topic
     """
     logger_api("request.json", str(request.json))
-    user_info_id = get_jwt_identity()
+    user_info_id = request.args["id"]
     country_id = get_country_id(request)
     logger_api("user_info_id", str(user_info_id))
 

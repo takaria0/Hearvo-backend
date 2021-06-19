@@ -454,6 +454,7 @@ class PostResource(Resource):
         db.session.commit()
         return {"message": "successfully created a post"}, 200
       except:
+        traceback.print_exc()
         db.session.rollback()
         return {"message": "failed to create a post"}, 400
 

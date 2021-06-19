@@ -1,4 +1,5 @@
 import os
+from datetime import datetime, timedelta, timezone
 
 from flask import request, Response, abort, jsonify, Blueprint
 from flask_restful import Resource
@@ -8,7 +9,7 @@ import bcrypt
 import Hearvo.config as config
 from ..utils import concat_realname
 from ..app import logger
-from ..models import db, User, UserGETSchema, UserInfo, UserInfoGETSchema, UserInfoPostVoted, UserInfoTopic
+from ..models import db, User, UserGETSchema, UserInfo, UserInfoGETSchema, UserInfoPostVoted, UserInfoTopic, UserInfoFollowing, UserInfoFollowingSchema
 from Hearvo.middlewares.detect_language import get_country_id
 from .logger_api import logger_api
 
@@ -23,6 +24,8 @@ DELETED_USER_NAME_MAP = {
 #########################################
 user_info_schema = UserInfoGETSchema()
 users_info_schema = UserInfoGETSchema(many=True)
+
+user_info_followings_schema = UserInfoFollowingSchema(many=True)
 
 #########################################
 # Routes to handle API
@@ -47,12 +50,15 @@ class UserResource(Resource):
         if user_info.hide_realname == False:
           profile_name = concat_realname(user_info.first_name, user_info.middle_name, user_info.last_name)
           name = user_info.name
+          has_followed = True if UserInfoFollowing.query.filter_by(user_info_id=user_info_id, following_user_info_id=user_info.id).first() else False
           is_real_name = True
         else:
           profile_name = user_info.profile_name
           name = user_info.name
+          has_followed = True if UserInfoFollowing.query.filter_by(user_info_id=user_info_id, following_user_info_id=user_info.id).first() else False
           is_real_name = False
-        result.append({"user_info_id": user_info.id, "profile_name": profile_name, "name": name, "is_real_name": is_real_name, "description": user_info.description if user_info.description else "" })
+
+        result.append({"user_info_id": user_info.id, "profile_name": profile_name, "name": name, "is_real_name": is_real_name, "description": user_info.description if user_info.description else "", "has_followed": has_followed })
 
       return result, 200
   
@@ -71,23 +77,29 @@ class UserResource(Resource):
       """
       if the user is me, always show the real name
       """
-      num_of_following_topics = UserInfoTopic.query.filter_by(user_info_id=user_info_id).count()
-      num_of_votes = UserInfoPostVoted.query.filter_by(user_info_id=user_info_id).count()
+      num_of_following_topics = UserInfoTopic.query.filter_by(user_info_id=user_info.id).count()
+      num_of_votes = UserInfoPostVoted.query.filter_by(user_info_id=user_info.id).count()
+      num_of_following_users = UserInfoFollowing.query.filter_by(user_info_id=user_info.id).count()
+      num_of_followers = UserInfoFollowing.query.filter_by(following_user_info_id=user_info.id).count()
+
       if str(user_info_id) == str(user_info.id):
-        result = { "user_info_id": user_info.id, "name": user_info.name, "profile_name": user_info.profile_name, "first_name": user_info.first_name, "middle_name": user_info.middle_name, "last_name": user_info.last_name, "created_at": user_info.created_at.isoformat(), "description": user_info.description }
+        result = { "user_info_id": user_info.id, "name": user_info.name, "profile_name": user_info.profile_name, "first_name": user_info.first_name, "middle_name": user_info.middle_name, "last_name": user_info.last_name, "created_at": user_info.created_at.isoformat(), "description": user_info.description, "profile_img_url": user_info.profile_img_url }
         
-        result = { **result, "num_of_following_topics": num_of_following_topics, "num_of_votes": num_of_votes, "myprofile": True }
+        result = { **result, "num_of_following_topics": num_of_following_topics, "num_of_votes": num_of_votes, "num_of_following_users": num_of_following_users, "num_of_followers": num_of_followers, "myprofile": True }
       else:
         """
         if the user is not me, 
         check hide real name setting and hide it if so.
         """
-        if user_info.hide_realname == False:
-          result = { "user_info_id": user_info.id, "name": user_info.name, "profile_name": user_info.profile_name, "first_name": user_info.first_name, "middle_name": user_info.middle_name, "last_name": user_info.last_name, "created_at": user_info.created_at.isoformat(), "description": user_info.description }
-        else:
-          result = { "user_info_id": user_info.id, "name": user_info.name, "profile_name": user_info.profile_name, "first_name": None, "middle_name": None, "last_name": None, "created_at": user_info.created_at.isoformat(), "description": user_info.description }
+        has_followed = True if UserInfoFollowing.query.filter_by(user_info_id=user_info_id, following_user_info_id=user_info.id).first() else False
 
-        result = { **result, "num_of_following_topics": num_of_following_topics, "num_of_votes": num_of_votes,"myprofile": False }
+        if user_info.hide_realname == False:
+          result = { "user_info_id": user_info.id, "name": user_info.name, "profile_name": user_info.profile_name, "first_name": user_info.first_name, "middle_name": user_info.middle_name, "last_name": user_info.last_name, "created_at": user_info.created_at.isoformat(), "description": user_info.description, "profile_img_url": user_info.profile_img_url, "has_followed": has_followed }
+        else:
+          result = { "user_info_id": user_info.id, "name": user_info.name, "profile_name": user_info.profile_name, "first_name": None, "middle_name": None, "last_name": None, "created_at": user_info.created_at.isoformat(), "description": user_info.description, "profile_img_url": user_info.profile_img_url, "has_followed": has_followed }
+
+        result = { **result, "num_of_following_topics": num_of_following_topics, "num_of_votes": num_of_votes,
+        "num_of_following_users": num_of_following_users, "num_of_followers": num_of_followers, "myprofile": False }
 
 
       return result, 200
@@ -160,6 +172,22 @@ class UserResource(Resource):
         db.session.rollback()
         status_code = 400
         return {}, status_code
+
+    elif "edit_profile_img" in request.args.keys():
+      profile_img_url = request.json["profile_img_url"]
+      user_info_obj.profile_img_url = profile_img_url
+
+      try:
+        db.session.add(user_info_obj)
+        db.session.commit()
+        status_code = 200
+        return user_info_schema.dump(user_info_obj), status_code
+        
+      except:
+        db.session.rollback()
+        status_code = 400
+        return {}, status_code
+      return {}, 200
 
     elif "edit_profile" in request.args.keys():
       profile_name = request.json["profile_name"]
@@ -303,3 +331,63 @@ class UserPasswordResource(Resource):
       status_code = 400
       return {}, status_code
 
+
+
+class UserInfoFollowingResource(Resource):
+
+  @jwt_required
+  def get(self):
+    user_info_id = request.args["id"]
+
+    try:
+      followings = UserInfoFollowing.query.filter_by(user_info_id=user_info_id).limit(100).all()
+      followers = UserInfoFollowing.query.filter_by(following_user_info_id=user_info_id).limit(100).all()
+      return {"followings": user_info_followings_schema.dump(followings), "followers": user_info_followings_schema.dump(followers)}
+    except:
+      return {}, 400
+
+  @jwt_required
+  def post(self):
+    my_user_info_id = get_jwt_identity()
+    target_user_info_id = request.json["user_info_id"]
+
+    if int(target_user_info_id) == int(my_user_info_id):
+      return {"message": "Failed to follow."}, 400
+
+    already_followed = UserInfoFollowing.query.filter_by(user_info_id=my_user_info_id, following_user_info_id=target_user_info_id).first()
+
+    if already_followed:
+      return {"message": "Failed to follow."}, 400
+
+    try:
+      create_obj = UserInfoFollowing(
+        user_info_id=my_user_info_id,
+        following_user_info_id=target_user_info_id,
+        created_at=datetime.now(timezone(timedelta(hours=0), 'UTC')).isoformat(),
+        updated_at=datetime.now(timezone(timedelta(hours=0), 'UTC')).isoformat(),
+        )
+      db.session.add(create_obj)
+      db.session.commit()
+
+      return {"message": "Followed."}, 200
+    except:
+      db.session.rollback()
+      return {"message": "Failed to follow."}, 400
+
+
+  @jwt_required
+  def delete(self):
+    my_user_info_id = get_jwt_identity()
+    my_user_info_obj = UserInfo.query.get(my_user_info_id)
+    target_user_info_id = request.json["user_info_id"]
+
+    try:
+      UserInfoFollowing.query \
+      .filter_by(user_info_id=my_user_info_id, following_user_info_id=target_user_info_id) \
+      .delete()
+      db.session.commit()
+
+      return {"message": "Unfollow."}, 200
+    except:
+      db.session.rollback()
+      return {"message": "Failed to unfollow."}, 400

@@ -2,7 +2,7 @@ from flask_marshmallow import Marshmallow
 from marshmallow_sqlalchemy import SQLAlchemyAutoSchema, fields
 from marshmallow_sqlalchemy.fields import Nested
 
-from .models import Post, User, VoteSelect, VoteSelectUser, Comment, UserInfo, VoteType, VoteMj, MjOption, Topic, PostTopic, UserInfoTopic, Group, UserInfoPostVoted, CommentFav, PostDetail
+from .models import Post, User, VoteSelect, VoteSelectUser, Comment, UserInfo, VoteType, VoteMj, MjOption, Topic, PostTopic, UserInfoTopic, Group, UserInfoPostVoted, CommentFav, PostDetail, UserInfoFollowing
 
 class GroupSchema(SQLAlchemyAutoSchema):
   class Meta:
@@ -150,6 +150,16 @@ class PostDetailSchema(SQLAlchemyAutoSchema):
   vote_mjs = Nested(VoteMjSchema, many=True)
   # user_info = Nested(UserInfoSchema(exclude=("vote_selects","posts","comments", "vote_select_user",)), many=False)
 
+
+class UserInfoFollowingSchema(SQLAlchemyAutoSchema):
+  class Meta:
+    model = UserInfoFollowing
+    include_relationships = True
+    include_fk = True
+    exclude = ()
+    
+  user_info = Nested(UserInfoSchema, many=False)
+  # following_user_info = Nested(UserInfoSchema, many=False)
 
 class PostSchema(SQLAlchemyAutoSchema):
   class Meta:

@@ -112,6 +112,7 @@ class UserInfo(db.Model):
   string_id = db.Column(db.String(20), unique=True)
   name = db.Column(db.String(100))
   profile_name = db.Column(db.String(100))
+  profile_img_url = db.Column(db.String(500))
   first_name = db.Column(db.String(100))
   middle_name = db.Column(db.String(100))
   last_name = db.Column(db.String(100))
@@ -159,7 +160,7 @@ class VoteSelect(db.Model):
 
   # Foreign Key
   post_id = db.Column(db.BigInteger, db.ForeignKey('post.id'), nullable=True) # DELETE IN THE FUTURE?
-  post_detail_id = db.Column(db.BigInteger, db.ForeignKey('post_detail.id'), nullable=False)
+  post_detail_id = db.Column(db.BigInteger, db.ForeignKey('post_detail.id'), nullable=True)
 
   # Many to Many
   users = db.relationship("UserInfo", secondary="vote_select_user")
@@ -488,3 +489,23 @@ class ReportReason(db.Model):
 
 
   
+#########################################
+# UserInfoFollower
+#########################################
+class UserInfoFollowing(db.Model):
+  __tablename__ = "user_info_following"
+
+  id = db.Column(db.BigInteger, primary_key=True, nullable=False)
+  created_at = db.Column(db.DateTime, default=datetime.now(timezone(timedelta(hours=0), 'UTC')).isoformat())
+  updated_at = db.Column(db.DateTime, default=datetime.now(timezone(timedelta(hours=0), 'UTC')).isoformat(), onupdate=datetime.now(timezone(timedelta(hours=0), 'UTC')).isoformat())
+
+  # Foreign Key
+  user_info_id = db.Column(db.BigInteger, db.ForeignKey('user_info.id'), nullable=False)
+  following_user_info_id = db.Column(db.BigInteger, db.ForeignKey('user_info.id'), nullable=False)
+
+  # One to One
+  user_info = db.relationship('UserInfo', backref='user_info_following', primaryjoin="UserInfo.id==UserInfoFollowing.user_info_id", lazy=True, uselist=False)
+  # following_user_info = db.relationship('UserInfo', backref='user_info_following', primaryjoin="UserInfo.id==UserInfoFollowing.following_user_info_id", lazy=True, uselist=False, foreign_keys="[UserInfo.id, UserInfoFollowing.following_user_info_id]")
+
+  def __repr__(self):
+      return '<UserInfoFollowing %s>' % self.content
