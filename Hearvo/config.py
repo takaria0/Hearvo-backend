@@ -9,6 +9,7 @@ DEFAULT_LIMIT = "3000/day;300/hour;30/minute;1/second"
 
 POSTS_PER_PAGE = 20
 
+MINIMUM_VOTES_TO_COMPUTE_CLOSE_USERS = os.environ.get("MINIMUM_VOTES_TO_COMPUTE_CLOSE_USERS", 10)
 # from datetime import datetime, timedelta, timezone, timedelta, timezone
 # JST = timezone(timedelta(hours=+9), 'JST')
 

@@ -14,6 +14,7 @@ from .comments import CommentResource, CommentFavResource
 from .groups import GroupResource, GroupUserInfoResource
 from .topics import UserInfoTopicResource, TopicResource
 from .reports import ReportResource
+from .mlmodels.close_users import CloseUsersResource
 
 PRE = config.URL_PREFIX
 
@@ -48,6 +49,7 @@ api.add_resource(GroupUserInfoResource, f'/{PRE}/groups/users')
 api.add_resource(TopicResource, f'/{PRE}/topics')
 api.add_resource(UserInfoTopicResource, f'/{PRE}/topics/users')
 api.add_resource(ReportResource, f'/{PRE}/reports')
+api.add_resource(CloseUsersResource, f'/{PRE}/mlmodels/close_users')
 
 
 

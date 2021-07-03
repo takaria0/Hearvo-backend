@@ -58,7 +58,9 @@ class UserResource(Resource):
           has_followed = True if UserInfoFollowing.query.filter_by(user_info_id=user_info_id, following_user_info_id=user_info.id).first() else False
           is_real_name = False
 
-        result.append({"user_info_id": user_info.id, "profile_name": profile_name, "name": name, "is_real_name": is_real_name, "description": user_info.description if user_info.description else "", "has_followed": has_followed })
+        result.append({"id": user_info.id, "profile_name": profile_name, "name": name, "is_real_name": is_real_name, "description": user_info.description if user_info.description else "", "has_followed": has_followed,
+                       "profile_img_url": user_info.profile_img_url,
+                       })
 
       return result, 200
   
@@ -83,7 +85,7 @@ class UserResource(Resource):
       num_of_followers = UserInfoFollowing.query.filter_by(following_user_info_id=user_info.id).count()
 
       if str(user_info_id) == str(user_info.id):
-        result = { "user_info_id": user_info.id, "name": user_info.name, "profile_name": user_info.profile_name, "first_name": user_info.first_name, "middle_name": user_info.middle_name, "last_name": user_info.last_name, "created_at": user_info.created_at.isoformat(), "description": user_info.description, "profile_img_url": user_info.profile_img_url }
+        result = { "id": user_info.id, "name": user_info.name, "profile_name": user_info.profile_name, "first_name": user_info.first_name, "middle_name": user_info.middle_name, "last_name": user_info.last_name, "created_at": user_info.created_at.isoformat(), "description": user_info.description, "profile_img_url": user_info.profile_img_url }
         
         result = { **result, "num_of_following_topics": num_of_following_topics, "num_of_votes": num_of_votes, "num_of_following_users": num_of_following_users, "num_of_followers": num_of_followers, "myprofile": True }
       else:
@@ -94,9 +96,9 @@ class UserResource(Resource):
         has_followed = True if UserInfoFollowing.query.filter_by(user_info_id=user_info_id, following_user_info_id=user_info.id).first() else False
 
         if user_info.hide_realname == False:
-          result = { "user_info_id": user_info.id, "name": user_info.name, "profile_name": user_info.profile_name, "first_name": user_info.first_name, "middle_name": user_info.middle_name, "last_name": user_info.last_name, "created_at": user_info.created_at.isoformat(), "description": user_info.description, "profile_img_url": user_info.profile_img_url, "has_followed": has_followed }
+          result = { "id": user_info.id, "name": user_info.name, "profile_name": user_info.profile_name, "first_name": user_info.first_name, "middle_name": user_info.middle_name, "last_name": user_info.last_name, "created_at": user_info.created_at.isoformat(), "description": user_info.description, "profile_img_url": user_info.profile_img_url, "has_followed": has_followed }
         else:
-          result = { "user_info_id": user_info.id, "name": user_info.name, "profile_name": user_info.profile_name, "first_name": None, "middle_name": None, "last_name": None, "created_at": user_info.created_at.isoformat(), "description": user_info.description, "profile_img_url": user_info.profile_img_url, "has_followed": has_followed }
+          result = { "id": user_info.id, "name": user_info.name, "profile_name": user_info.profile_name, "first_name": None, "middle_name": None, "last_name": None, "created_at": user_info.created_at.isoformat(), "description": user_info.description, "profile_img_url": user_info.profile_img_url, "has_followed": has_followed }
 
         result = { **result, "num_of_following_topics": num_of_following_topics, "num_of_votes": num_of_votes,
         "num_of_following_users": num_of_following_users, "num_of_followers": num_of_followers, "myprofile": False }
@@ -104,6 +106,24 @@ class UserResource(Resource):
 
       return result, 200
     
+    """
+    number of votes of this month so far to enable close_users functionality
+    (need at least XX votes to compute AI model) e.g. 10
+    """
+    if "left_votes_for_close_users" in request.args.keys():
+      start_day_of_this_month = datetime.today().replace(day=1)
+      how_many_votes_this_month = UserInfoPostVoted.query \
+        .filter(UserInfoPostVoted.user_info_id==user_info_id, UserInfoPostVoted.created_at > start_day_of_this_month) \
+        .count()
+      left_votes = config.MINIMUM_VOTES_TO_COMPUTE_CLOSE_USERS - how_many_votes_this_month
+      if left_votes > 0:
+        left_votes = left_votes
+        complete = False
+      else:
+        left_votes = 0
+        complete = True
+      return { "date": datetime.today().strftime("%Y-%m") ,"left_votes": left_votes, "complete": complete }, 200
+
 
     if "profile_detail" in request.args.keys():
       num_of_following_topics = UserInfoTopic.query.filter_by(user_info_id=user_info_id).count()
@@ -190,10 +210,15 @@ class UserResource(Resource):
       return {}, 200
 
     elif "edit_profile" in request.args.keys():
+      """
+      name: for only user id
+      profile_name: basically same with the name, but change it to real name if hide_realname=False for convenience
+      """
       profile_name = request.json["profile_name"]
       description = request.json["description"]
 
       # UPDATE USER
+      user_info_obj.name = profile_name
       user_info_obj.profile_name = profile_name
       user_info_obj.description = description
 
@@ -201,7 +226,7 @@ class UserResource(Resource):
       check name duplication
       """
       country_id = get_country_id(request)
-      check_dup = UserInfo.query.filter(UserInfo.profile_name==profile_name, UserInfo.id != user_info_id, UserInfo.country_id==country_id).first()
+      check_dup = UserInfo.query.filter(UserInfo.profile_name==profile_name, UserInfo.name==profile_name, UserInfo.id != user_info_id).first()
       if check_dup:
         return {}, 400
 

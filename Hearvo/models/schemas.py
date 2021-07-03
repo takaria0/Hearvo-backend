@@ -1,4 +1,5 @@
 from flask_marshmallow import Marshmallow
+from marshmallow import Schema, fields, post_dump
 from marshmallow_sqlalchemy import SQLAlchemyAutoSchema, fields
 from marshmallow_sqlalchemy.fields import Nested
 
@@ -60,6 +61,18 @@ class UserInfoSchema(SQLAlchemyAutoSchema):
     include_relationships = True
     exclude = ("vote_selects","posts","comments","vote_select_user",)
    
+  @post_dump(pass_many=True)
+  def hide_realname(self, data, **kwargs):
+      if data["hide_realname"]:
+        data["first_name"] = None
+        data["middle_name"] = None
+        data["last_name"] = None
+      else:
+        pass
+      
+      return data
+    
+    
 class UserInfoPostVotedSchema(SQLAlchemyAutoSchema):
   class Meta:
     model = UserInfoPostVoted
@@ -168,6 +181,8 @@ class PostSchema(SQLAlchemyAutoSchema):
     include_fk = True
     exclude = ("vote_selects",)
     
+  
+  user_info = Nested(UserInfoSchema(exclude=("vote_selects","posts","comments", "vote_select_user",)), many=False)
   post_details = Nested(MultiplePostDetailSchema, many=True) # many=True yield an error, why????? -> uselist=True
   target_post_detail = Nested(PostDetailSchema, many=False)
   current_post_detail = Nested(PostDetailSchema, many=False)
@@ -176,7 +191,6 @@ class PostSchema(SQLAlchemyAutoSchema):
   # vote_selects = Nested(VoteSelectSchema(exclude=("users",)), many=True)
   # vote_mjs = Nested(VoteMjSchema, many=True)
   # mj_options = Nested(MjOptionSchema, many=True)
-  # user_info = Nested(UserInfoSchema(exclude=("vote_selects","posts","comments", "vote_select_user",)), many=False)
   
   
 

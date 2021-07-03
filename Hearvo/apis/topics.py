@@ -5,11 +5,12 @@ from flask import request, Response, abort, jsonify, Blueprint
 from flask_restful import Resource
 from flask_jwt_extended import jwt_required, get_jwt_identity, jwt_optional, verify_jwt_in_request_optional
 from sqlalchemy import func
-from datetime import datetime, timedelta, timezone
+from datetime import datetime, date, timedelta, timezone
+from dateutil.relativedelta import relativedelta
 
 import Hearvo.config as config
 from ..app import logger
-from ..models import db, Topic, TopicSchema, UserInfoTopic, PostTopic
+from ..models import db, Topic, TopicSchema, UserInfoTopic, PostTopic, UserInfoPostVoted
 from .logger_api import logger_api
 from Hearvo.middlewares.detect_language import get_country_id
 
@@ -24,7 +25,7 @@ topics_schema = TopicSchema(many=True)
 # Routes to handle API
 #########################################
 class TopicResource(Resource):
-  # @jwt_required
+  @jwt_optional
   def get(self):
     """
     /topics:
@@ -35,6 +36,55 @@ class TopicResource(Resource):
     """
     # user_info_id = get_jwt_identity()
     country_id = get_country_id(request)
+
+    """
+    get topics for WordCloud
+    return topics that the user has voted during the month
+    
+    e.g. return topics user has voted in 2021-06
+    /topics?wordcloud="2021-06"
+    
+    return [
+      {"text" : "Science", "value": 5},
+      {"text" : "Manga", "value": 20},
+      {"text" : "Anime", "value": 40},
+    ]
+    """
+    if "wordcloud" in request.args.keys():
+      
+      user_info_id = get_jwt_identity()
+      if user_info_id is None:
+        return { "message": "No user" }, 400
+      
+      input_date = request.args["wordcloud"]
+      start_date = datetime.strptime(input_date, "%Y-%m").replace(day=1)
+      end_date = start_date + relativedelta(months=1) - timedelta(days=1)
+      
+      start_date = start_date.replace(month=1)
+      try:
+        """
+        get topics and the counts that the user has voted during the month
+        """
+        q = db.session.query(Topic.topic, func.count(PostTopic.topic_id)) \
+          .join(PostTopic, PostTopic.topic_id == Topic.id, isouter=True) \
+          .join(UserInfoPostVoted, UserInfoPostVoted.post_id == PostTopic.post_id) \
+          .order_by(func.count(PostTopic.topic_id).desc()) \
+          .group_by(Topic.id, PostTopic.topic_id) \
+          .filter(
+            UserInfoPostVoted.created_at.between(start_date, end_date),
+            # Topic.country_id == country_id,
+            # UserInfoPostVoted.user_info_id == user_info_id # TODO: uncomment this
+          ) \
+          .limit(100) \
+          .all()
+        
+        res = [{ "text": data[0], "value": data[1]} for data in q]
+        
+        return res, 200
+      except:
+        import traceback; traceback.print_exc();
+        return {}, 400
+
 
 
     """

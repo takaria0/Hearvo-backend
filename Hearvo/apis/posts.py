@@ -13,7 +13,7 @@ from sqlalchemy.orm import lazyload, selectinload, with_loader_criteria
 
 import Hearvo.config as config
 from ..app import logger, cache, limiter
-from ..models import db, Post, PostDetail, PostSchema, VoteSelect, VoteSelectUser, UserInfoPostVoted, UserInfo, VoteMj, MjOption, VoteMjUser, Topic, PostTopic, PostGroup, Group, UserInfoPostVotedSchema, UserInfoGroup, UserInfoTopic, TopicSchema, VoteSelectSchema, PostDetailSchema
+from ..models import db, Post, PostDetail, PostSchema, VoteSelect, VoteSelectUser, UserInfoPostVoted, UserInfo, VoteMj, MjOption, VoteMjUser, Topic, PostTopic, PostGroup, Group, UserInfoPostVotedSchema, UserInfoGroup, UserInfoTopic, TopicSchema, VoteSelectSchema, PostDetailSchema, UserInfoFollowing
 
 from .logger_api import logger_api
 from Hearvo.middlewares.detect_language import get_country_id
@@ -298,6 +298,18 @@ class PostResource(Resource):
         post_obj = posts_schema.dump(posts)
         count_vote_obj = count_vote_ver2(post_obj, user_info_id)
         return count_vote_obj, status_code
+      
+      if keyword == "following":
+        
+        try:
+          body = handle_following_feed(user_info_id, country_id)
+          return body, 200
+        except:
+          body = { "success": False }
+          traceback.print_exc()
+          return body, 400
+
+
 
       """
       others
@@ -461,6 +473,95 @@ class PostResource(Resource):
 
 
     
+    
+    
+    
+"""
+Util functions
+"""
+
+
+
+
+def order_filter_posts(feed): 
+  
+  """drop duplicates TODO: make it faster"""
+  set_of_jsons = {json.dumps(d, sort_keys=True) for d in feed}
+  dropped_feed = [json.loads(t) for t in set_of_jsons]
+  
+  """reorder feed by created_at""" 
+  
+  
+  return dropped_feed
+
+def handle_following_feed(user_info_id, country_id):
+  """
+  return following posts
+  
+  they contain:
+  following_feed_type: 1. posts that following users has posted 
+  following_feed_type: 2. posts that following users has voted
+  following_feed_type: 3. posts that has topics the user is following
+  
+  thus not logged in users can't see this feed.
+  """
+  
+  if not user_info_id:
+    return {}, 200
+  
+  """following_feed_type: 1"""
+  """posts that following users have posted"""
+  following_posts_posted = Post.query \
+    .filter_by(country_id=country_id, parent_id=None) \
+    .join(UserInfoFollowing, Post.user_info_id == UserInfoFollowing.following_user_info_id) \
+    .filter(UserInfoFollowing.following_user_info_id == user_info_id) \
+    .limit(20).all()
+    
+  """attach who posted"""
+  following_posts_posted = posts_schema.dump(following_posts_posted)
+  new_following_posts_posted = []
+  for each in following_posts_posted:
+    each["following_feed_type"] = 1
+    new_following_posts_posted.append(each)
+
+  """following_feed_type: 2"""
+  """posts that following users have voted"""
+  following_posts_voted = Post.query \
+    .filter_by(country_id=country_id, parent_id=None) \
+    .join(UserInfoPostVoted) \
+    .filter_by(user_info_id=user_info_id) \
+    .limit(20).all()
+    
+  """attach who voted"""
+  following_posts_voted = posts_schema.dump(following_posts_voted)
+  new_following_posts_voted = []
+  for each in following_posts_voted:
+    each["following_feed_type"] = 2
+    new_following_posts_voted.append(each)
+    
+  """following_feed_type: 3"""
+  """posts that has following topics"""
+  following_posts_topic = Post.query.filter_by(country_id=country_id, parent_id=None) \
+    .join(Post.current_post_detail) \
+    .join(PostTopic, PostTopic.post_id == Post.id, isouter=True) \
+    .join(UserInfoTopic, UserInfoTopic.topic_id == PostTopic.topic_id, isouter=True) \
+    .filter(UserInfoTopic.user_info_id == user_info_id) \
+    .order_by(PostDetail.id.desc()).distinct().limit(20).all() \
+    # .paginate(page, per_page=config.POSTS_PER_PAGE).items
+
+  """attach what topic"""
+  following_posts_topic = posts_schema.dump(following_posts_topic)
+  new_following_posts_topic = []
+  for each in following_posts_topic:
+    each["following_feed_type"] = 3
+    new_following_posts_topic.append(each)
+
+  feed = [*following_posts_posted, *following_posts_voted, *following_posts_topic]
+  
+  """ordering posts or filtering posts"""
+  post_obj = order_filter_posts(feed)
+  count_vote_obj = count_vote_ver2(post_obj, user_info_id)
+  return count_vote_obj
 
 
 
